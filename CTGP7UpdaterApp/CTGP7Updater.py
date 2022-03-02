@@ -1,6 +1,7 @@
 import os
 from urllib.request import urlopen
 import shutil
+import psutil
 
 class CTGP7Updater:
 
@@ -8,9 +9,10 @@ class CTGP7Updater:
     _INSTALLER_FILE_DIFF = "installinfo.txt"
     _FILES_LOCATION = "data"
     _LATEST_VER_LOCATION = "latestver"
-    _UPDATE_FILEFLAGMD = ["M","D","T","F"]
+    _UPDATE_FILEFLAGMD = ["M","D","T","F","S"]
     _DL_ATTEMPT_TOTALCNT = 30
     _VERSION_FILE_PATH = "config/version.bin"
+    _SLACK_FREE_SPACE = 20000000
 
     def __init__(self, isInstaller=True) -> None:
         self.isInstaller = isInstaller
@@ -23,6 +25,8 @@ class CTGP7Updater:
         self.latestVersion = ""
         self.logFunction = None
         self.isStopped = False
+        self.downloadSize = 0
+        
         try:
             self.baseURL = self._downloadString(CTGP7Updater._BASE_URL_DYN_LINK).replace("\r", "").replace("\n", "")
         except Exception as e:
@@ -41,7 +45,12 @@ class CTGP7Updater:
         for i in range(len(dll)):
             ms=dll[i][0]; mf=dll[i][1]
 
-            if ms=="F":
+            if ms=="S":
+                try:
+                    self.downloadSize = int(mf[1:])
+                except Exception as e:
+                    raise Exception("Failed to parse needed download size: {}".format(e))
+            elif ms=="F":
                 # Next element is expected to use method "T", which should be always true
                 # In order to prevent renaming without downloading first, just store as reference
                 oldf=mf
@@ -109,7 +118,13 @@ class CTGP7Updater:
 
             except Exception as e:
                 raise Exception("Failed to get list of files: {}".format(e))
-            
+    
+    def verifySpaceAvailable(self):
+        if (self.downloadSize):
+            available_space = psutil.disk_usage(self.basePath).free
+            if (self.downloadSize + CTGP7Updater._SLACK_FREE_SPACE > available_space):
+                raise Exception("Not enough free space on destination folder. Additional {} MB needed to proceed with installation.".format((self.downloadSize + CTGP7Updater._SLACK_FREE_SPACE - available_space) // 1000000))
+
     def startUpdate(self):
         mainfolder = os.path.join(self.basePath, "CTGP-7")
         hbrwfolder = os.path.join(self.basePath, "3ds")
@@ -212,4 +227,5 @@ class CTGP7Updater:
     def cleanInstallFolder(self):
         mainfolder = os.path.join(self.basePath, "CTGP-7")
         if (os.path.exists(mainfolder)):
+            self._log("Cleaning up previous CTGP-7 installation...")
             shutil.rmtree(mainfolder)

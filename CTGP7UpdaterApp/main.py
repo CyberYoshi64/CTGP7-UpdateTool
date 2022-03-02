@@ -8,6 +8,7 @@ from PySide2.QtWidgets import (
 from PySide2.QtCore import (
     QRunnable, Slot, Signal, QThreadPool, QObject
 )
+import psutil
 
 from CTGP7UpdaterApp.ui_main import Ui_MainWindow
 from CTGP7UpdaterApp.CTGP7Updater import CTGP7Updater
@@ -45,6 +46,7 @@ class CTGP7InstallerWorker(QRunnable):
             self.updater.cleanInstallFolder()
             self.updater.getLatestVersion()
             self.updater.loadUpdateInfo()
+            self.updater.verifySpaceAvailable()
             self.updater.startUpdate()
         except Exception as e:
             self.signals.error.emit(str(e))
@@ -59,6 +61,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.progressBar.setEnabled(False)
         self.progressInfoLabel.setText("")
         self.setStartButtonState(0)
+        self.scanForNintendo3DSSD()
         self.installerworker = None
         self.threadpool = QThreadPool()
         self.didSaveBackup = False
@@ -112,6 +115,21 @@ class Window(QMainWindow, Ui_MainWindow):
             self.installOnError("Failed to create save backup: {}".format(e))
             return False
             
+    def scanForNintendo3DSSD(self):
+        try:
+            mount_points = psutil.disk_partitions()
+            candidates = []
+            for m in mount_points:
+                try:
+                    if (os.path.exists(os.path.join(m.mountpoint, "Nintendo 3DS"))):
+                        candidates.append(m.mountpoint)
+                except:
+                    pass
+            if (len(candidates) == 1):
+                self.sdRootText.setText(candidates[0])
+        except:
+            pass
+        
 
     def startStopButtonPress(self):
         if (self.startButtonState == 1):
@@ -150,7 +168,7 @@ class Window(QMainWindow, Ui_MainWindow):
             return
         if (os.path.exists(folder)):
             if (os.path.exists(os.path.join(folder, "Nintendo 3DS"))):
-                self.miscInfoLabel.setText("Valid 3DS SD card selected")
+                self.miscInfoLabel.setText("Valid 3DS SD card detected")
                 self.miscInfoLabel.setStyleSheet("color: green")
             else:
                 self.miscInfoLabel.setText("Folder exists, but is not a valid 3DS SD card")
