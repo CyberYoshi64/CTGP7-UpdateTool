@@ -181,9 +181,10 @@ class Window(QMainWindow, Ui_MainWindow):
 
     def selectSDDirectory(self):
         dialog = QFileDialog()
-        folder_path = dialog.getExistingDirectory(None, "Select 3DS SD Card")
-        folder_path = folder_path.replace("/", os.path.sep).replace("\\", os.path.sep)
-        self.sdRootText.setText(folder_path)
+        folder_path = dialog.getExistingDirectory(self, "Select 3DS SD Card", self.sdRootText.text())
+        if (folder_path != ""):
+            folder_path = folder_path.replace("/", os.path.sep).replace("\\", os.path.sep)
+            self.sdRootText.setText(folder_path)
     
     def showHelpDialog(self):
         QMessageBox.information(self, "About", "CTGP-7 Installer v1.0<br><br>If you are having issues, ask for help in the <a href='https://discord.com/invite/0uTPwYv3SPQww54l'>CTGP-7 Discord Server</a>.")
