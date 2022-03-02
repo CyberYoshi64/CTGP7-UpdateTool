@@ -129,3 +129,6 @@ dmypy.json
 
 # Test folder
 test/
+
+# Releases
+Release/
