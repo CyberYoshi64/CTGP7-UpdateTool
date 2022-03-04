@@ -6,7 +6,9 @@ Supported platforms: Linux, Windows
 
 ## GUI version
 
-Modules needed: `pyside2`
+Modules needed: `pyside2`, `psutil`
+
+(Should you not have these modules install them with `pip install`)
 
 Simply launch `main.py`.
 On Linux, you might need to call it in a terminal using `python main.py`.
@@ -14,5 +16,7 @@ On Linux, you might need to call it in a terminal using `python main.py`.
 ## Console version
 
 Modules needed: `requests`
+
+(Should you not have these modules install them with `pip install`)
 
 The script is located in the `originalScript` folder. Use the `-h` switch for help on the script syntax.
