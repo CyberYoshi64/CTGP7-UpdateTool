@@ -8,7 +8,7 @@ Supported platforms: Linux, Windows
 
 Modules needed: `pyside2`, `psutil`
 
-(Should you not have these modules install them with `pip install`)
+(Should you not have these modules, install them with `pip install pyside2 psutil`)
 
 Simply launch `main.py`.
 On Linux, you might need to call it in a terminal using `python main.py`.
@@ -17,6 +17,6 @@ On Linux, you might need to call it in a terminal using `python main.py`.
 
 Modules needed: `requests`
 
-(Should you not have these modules install them with `pip install`)
+(Should you not have this module, install them with `pip install requests`)
 
 The script is located in the `originalScript` folder. Use the `-h` switch for help on the script syntax.
