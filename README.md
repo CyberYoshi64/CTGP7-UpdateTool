@@ -17,10 +17,17 @@ On Linux, you might need to call it in a terminal using `python main.py`.
 
 ## Console version
 
-**Warning:** The console version currently is only for updating an existing CTGP-7 installation.
+The console version allows updating an existing CTGP-7 installation and also performing a fresh installation.
 
-Modules needed: `requests`
+Modules needed: `psutil`
 
-(Should you not have this module, install them with `pip install requests`)
+(Should you not have this module, install it with `pip install psutil`)
 
-The script is located in the `originalScript` folder. Use the `-h` switch for help on the script syntax.
+The script is located in the `originalScript` folder.
+
+The script will automatically check for the SD Card to install/update on. Make sure you inserted the SD Card before running this tool.
+(On Linux, you might have to manually mount the SD Card, if your desktop environment isn't doing it automatically.)
+
+Should there be multiple Nintendo 3DS SD Cards mounted, or your SD Card is not detected, please specify the path to the SD Card (such as `E:` (Windows) or `/media/user/SDCARD` (Linux)) as an argument. (Drag'n'dropped folders are also supported)
+
+Specify `install` as an argument to ignore checking for updates and (re)install the mod.
