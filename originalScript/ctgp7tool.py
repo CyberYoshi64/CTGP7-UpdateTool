@@ -259,6 +259,13 @@ def scanForNintendo3DSSD()->list:
         except:
             pass
 
+def showTooInstallMsg()->None:
+    print("""
+Please install the new launcher CIA.
+  Open FBI and select SD > CTGP-7 > cia > CTGP-7.cia > Install CIA
+""")
+    input("Press any key to continue.")
+
 ### Entrypoint
 appProgress = 0; totalDownloadSize = 0
 confidence2Install = False; deviceSussy = False
@@ -392,6 +399,9 @@ An update is not feasible for the following potential reasons:
     else:
         a=False
         if curver == len(changelog)-1:
+            try: os.stat(installPath+_PENDINGUPDATE_PATH)
+            except: pass
+            else: os.remove(installPath+_PENDINGUPDATE_PATH)
             print("You're up-to-date already. No updates can be performed.")
             exit(0)
         try:
@@ -467,13 +477,9 @@ An update is not feasible for the following potential reasons:
     configBinFD = open(installPath+_VERSION_FILE_PATH,"xb")
     configBinFD.write(versionToUpdateTo.encode("utf8"))
     configBinFD.close()
+    appProgress=4
     print(("The update","The installation")[bool(confidence2Install)]+" was successful.")
-    if tooInstalling:
-        print("""
-Please install the new launcher CIA.
-  Open FBI and select SD > CTGP-7 > cia > CTGP-7.cia > Install CIA
-""")
-    input("Press any key to continue.")
+    if tooInstalling: showTooInstallMsg()
     exit(0)
 except (KeyboardInterrupt, EOFError):
     pass
@@ -481,7 +487,7 @@ except Exception as e:
     print("An error has occured: %s"%e)
 
 print("\nCleaning up...")
-if appProgress>=2:
+if appProgress>=2 and appProgress<4:
     # If update failed or user aborted, save the file lists in pendingupdate.bin
     os.makedirs(installPath+"/CTGP-7/config",exist_ok=True)
     a=installPath+"/CTGP-7"
@@ -502,5 +508,5 @@ if appProgress>=2:
     except: pass
     else: os.remove(a)
     os.rename(a+".new",a)
-
+if tooInstalling: showTooInstallMsg()
 exit(1)
