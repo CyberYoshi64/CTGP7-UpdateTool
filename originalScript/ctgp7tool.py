@@ -75,7 +75,7 @@ class FileListEntry:
                     fout[fout.rfind("/")+1:]
                 ))
                 except KeyboardInterrupt: usrCancel=True; break
-                except: pass
+                except Exception as e: print(e); exit()
                 else: break
             shownDlCounter += 1
         if self.fileMethod == "D": # Deleted
@@ -151,7 +151,7 @@ def downloadToFileWIndicator(url:str, path:str, prefix:str="", newLine:bool=True
             writeProg += len(buffer)
             outfile.write(buffer)
             if doprint: print(indicatorStr + ("("+"{0}/{1}"*showsize+"{2:.1%}"*(not showsize)+")").format(mkSzFmt(writeProg, "%.1f", 1), mkSzFmt(contentLength, "%.1f", 1), writeProg/contentLength),end="\r")
-    outfile.flush()
+        outfile.flush()
     outfile.close()
     if newLine and doprint: print("")
     try: os.stat(fullpath)
@@ -349,7 +349,7 @@ Proceeding will wipe this installation.
             try: a=input("Continue anyway? [Y/N] ").upper()[0]=="Y"
             except: a=False
             if not a: raise Exception(_STR_USERABORT)
-    print("Preparing to "+("update","install")[bool(confidence2Install)]+" CTGP-7...\n")
+    print("Taking action: "+("Update","(Re-)Install")[bool(confidence2Install)])
     
     flist_presort = []
     
@@ -442,7 +442,7 @@ An update is not feasible for the following potential reasons:
     try: os.stat(installPath+_TOOINSTALL_PATH+".3dsx")
     except: pass
     else:
-        shutil.copyfile(installPath+_TOOINSTALL_PATH+".3dsx", installPath+_TOOINSTALL_HB_PATH+"CTGP-7.3dsx")
+        shutil.copyfile(installPath+_TOOINSTALL_PATH+".3dsx", installPath+_TOOINSTALL_HB_PATH+".3dsx")
         os.rename(installPath+_TOOINSTALL_PATH+".3dsx", installPath+_TOOINSTALL_CIA_PATH+".3dsx")
 
     try: os.stat(installPath+_TOOINSTALL_PATH+".cia")
