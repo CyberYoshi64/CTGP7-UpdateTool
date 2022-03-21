@@ -297,7 +297,7 @@ the path as an argument.\n"""%installPath)
             print("""No SD Card found or path specified.
 
 Make sure that you plugged in your Nintendo 3DS SD Card{}.
-if you want to use the automatic detection.""".format(" and mounted it"*os.name!="nt"))
+if you want to use the automatic detection.""".format(" and mounted it"*int(os.name!="nt")))
             exit(3)
 
     for i in range(1,len(argv)):
@@ -308,6 +308,7 @@ if you want to use the automatic detection.""".format(" and mounted it"*os.name!
 
     if not checkForValidSD(installPath):
         raise Exception("User aborted operation.")
+    print("Preparing...")
     for dlAttempt in range(_DL_ATTEMPT_TOTALCNT):
         try: baseURL = urlopen(_BASE_URL_DYN_LINK, timeout=10).read().decode("utf8")
         except KeyboardInterrupt: usrCancel = True; break
