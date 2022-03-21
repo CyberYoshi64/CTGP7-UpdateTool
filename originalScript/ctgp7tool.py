@@ -5,29 +5,35 @@ from urllib.request import urlopen
 from sys import argv
 import os, struct, psutil, time
 
-_FILELIST_METHODS = ["M","D","T","F","S"]
-_BASE_URL_DYN_LINK = "https://ctgp7.page.link/baseCDNURL"
-_INSTALLER_FILE_DIFF = "installinfo.txt"
-_UPDATER_CHGLOG_FILE = "changeloglist"
-_UPDATER_FILE_URL = "https://github.com/PabloMK7/CTGP-7updates/releases/download/v{}/filelist.txt"
-_FILES_LOCATION = "data"
-_LATEST_VER_LOCATION = "latestver"
-_DL_ATTEMPT_TOTALCNT = 30
+_FILELIST_METHODS = ["M","D","T","F","S"] # Modify, Delete, To (rename), From (rename), Storage space required
+_BASE_URL_DYN_LINK = "https://ctgp7.page.link/baseCDNURL" # Future-proof, CTGP-7 updates will be on a CDN
+_INSTALLER_FILE_DIFF = "installinfo.txt" # Installer
+_UPDATER_CHGLOG_FILE = "changeloglist" # Updater
+_UPDATER_FILE_URL = "https://github.com/PabloMK7/CTGP-7updates/releases/download/v{}/filelist.txt" # Updater
+_FILES_LOCATION = "data" # https://[baseCDN]/data/... - Where the files are located
+_LATEST_VER_LOCATION = "latestver" # No idea why Pablo uses this, I can just get it from the changelog
+_DL_ATTEMPT_TOTALCNT = 30 # 30 attempts... generous, if I'm honest
 _VERSION_FILE_PATH = "/CTGP-7/config/version.bin"
 _PENDINGUPDATE_PATH = "/CTGP-7/config/pendingUpdate.bin"
 _TOOINSTALL_PATH = "/CTGP-7/cia/tooInstall"
 _TOOINSTALL_CIA_PATH = "/CTGP-7/cia/CTGP-7"
-_TOOINSTALL_HB_PATH = "/3ds/"
-_SLACK_FREE_SPACE = 20000000
+_TOOINSTALL_HB_PATH = "/3ds/CTGP-7"
+_SLACK_FREE_SPACE = 19851264
 
-_STR_USERABORT = "The user aborted the operation."
+# Console-only, have to obnoxiously await any chance for pesky users to abort.
+_STR_USERABORT = "The user aborted the operation." # It appears so often, no need to type it out everywhere.
+
+# File List struct from:
+# https://github.com/PabloMK7/CTGP-7_Launcher/blob/master/source/updater.c#L15-L20
 
 class FileListEntry:
-    def __init__(self, ver=0, method="M", path="/") -> None:
-        self.filePath = path
-        self.forVersion = ver
+    def __init__(self, ver=0, method="M", path="/") -> None: # Defaults for whatever reason
+        self.filePath = path # File path
+        self.forVersion = ver # Effectively useless, only used for compatibility with the launcher
         try: self.fileMethod = method
         except: pass
+    
+    ## Export struct for pendingUpdate.bin
     def export(self) -> bytes:
         import struct
         return struct.pack("<BI", \
@@ -48,15 +54,19 @@ class FileListEntry:
             else: break
         self.filePath = self.filePath.decode("utf8")
         return off+1
+
+    ## Internal use - Return print()-able string
     def debug(self) -> str:
         return self.fileMethod+", "+str(self.forVersion)+", "+self.filePath
+
+    ## Perform the action
     def perform(self) -> int:
         global baseURL, shownDlCounter, shownDlTotal
         global fileMng_OldFileName, usrCancel
         global tooInstalling
         url = baseURL+_FILES_LOCATION+self.filePath
         fout = ""+self.filePath
-        if self.fileMethod == "M":
+        if self.fileMethod == "M": # Modified
             for i in range(_DL_ATTEMPT_TOTALCNT):
                 try: downloadToFileWIndicator(url, fout,\
                 "({}/{}) {}".format(\
@@ -68,19 +78,25 @@ class FileListEntry:
                 except: pass
                 else: break
             shownDlCounter += 1
-        if self.fileMethod == "D":
+        if self.fileMethod == "D": # Deleted
             try: os.stat(fout)
             except: pass
             else: os.remove(fout)
-        if self.fileMethod == "F":
+        if self.fileMethod == "F": # From
+            
+            # This, as-is, does nothing.
+            # Just remember this file to rename it
+            # when the next file's method is "T".
+            
             fileMng_OldFileName = fout
-        if self.fileMethod == "T":
+        if self.fileMethod == "T": # To
             try: os.stat(fout)
             except: pass
-            else:
+            else: # Right here, actually
                 os.remove(fout)
                 os.rename(fileMng_OldFileName, fout)
 
+# Console only, want to provide some automation in console version too
 def checkForValidSD(path:str) -> bool:
     if os.path.exists(os.path.join(path+"/Nintendo 3DS")):
         return True
@@ -93,6 +109,7 @@ def checkForValidSD(path:str) -> bool:
         return False
     return True
 
+# equivalent to GUI's downloadString()
 def downloadWithIndicator(url:str, prefix:str="", newLine:bool=True) -> bytes:
     outbuffer = b''
     u = urlopen(url, timeout=10)
@@ -110,6 +127,7 @@ def downloadWithIndicator(url:str, prefix:str="", newLine:bool=True) -> bytes:
     if newLine and doprint: print("")
     return outbuffer
 
+# Again, but output as file.
 def downloadToFileWIndicator(url:str, path:str, prefix:str="", newLine:bool=True, showsize:bool=True) -> None:
     global installPath
     if path[0]!="/": path="/"+path
@@ -121,9 +139,9 @@ def downloadToFileWIndicator(url:str, path:str, prefix:str="", newLine:bool=True
     writeProg = 0; indicatorStr = "\x1b[2K"+"%s "%(prefix)+"... "
     if doprint: print(indicatorStr,end="\r")
     block_sz = 8192
-    try: os.stat(fullpath+".part")
+    try: os.stat(fullpath+".part") # Instead of writing to the file directly …
     except: pass
-    else: os.remove(fullpath+".part")
+    else: os.remove(fullpath+".part") # … write to a .part file …
     with open(fullpath+".part","xb") as outfile:
         while True:
             buffer = u.read(block_sz)
@@ -133,21 +151,24 @@ def downloadToFileWIndicator(url:str, path:str, prefix:str="", newLine:bool=True
             writeProg += len(buffer)
             outfile.write(buffer)
             if doprint: print(indicatorStr + ("("+"{0}/{1}"*showsize+"{2:.1%}"*(not showsize)+")").format(mkSzFmt(writeProg, "%.1f", 1), mkSzFmt(contentLength, "%.1f", 1), writeProg/contentLength),end="\r")
-        outfile.flush()
-        outfile.close()
-        if newLine and doprint: print("")
-        try: os.stat(fullpath)
-        except: pass
-        else: os.remove(fullpath)
-        os.rename(fullpath+".part", fullpath)
+    outfile.flush()
+    outfile.close()
+    if newLine and doprint: print("")
+    try: os.stat(fullpath)
+    except: pass
+    else: os.remove(fullpath)
+    os.rename(fullpath+".part", fullpath) # … and then overwrite the actual, if download succeeded.
     return 0
 
+# Convenience function - Bytes -> *iB (get it right, Pablo!)
+# fr, Windows says it's MB but it actually MiB, cuz Windows sucks
 def mkSzFmt(size:int, fmts:str, lim:int=0):
     szstr=["bytes", "KiB", "MiB", "GiB"]; szpow:int=0
     nsz:float=size
     while abs(nsz)>=1024 or szpow<lim: nsz=nsz/1024; szpow += 1
     return fmts%nsz + " %s"%szstr[szpow]
 
+# Ensure the version.bin wasn't tampered with
 def ctgpververify(s:str)->bool:
     p="0123456789." # decimal + dot
     for i in range(len(s)):
@@ -156,6 +177,8 @@ def ctgpververify(s:str)->bool:
     if len(l)<2 or len(l)>3: return False
     return True
 
+# Split changelog in list, whereas the tuples inside are:
+# (versionNumber, changelogText)
 def splitChangelogData(filecnt:str):
     mode=0; arr=[]; vern=""; chng=""; char=""
 
@@ -187,6 +210,7 @@ def splitChangelogData(filecnt:str):
     
     return arr
 
+# Take an unsorted file list…
 def parseAndSortDlList(dll:list):
     global totalDownloadSize, shownDlTotal
     fileN=[]; fileM=[]; fileV=[]; newDl=[]; oldf=""
@@ -212,7 +236,7 @@ def parseAndSortDlList(dll:list):
         #newDl.append((filemode.index(fileM[i]), fileN[i], fileO[i], fileV[i]))
         newDl.append(FileListEntry(fileV[i], fileM[i], fileN[i]))
 
-    return newDl
+    return newDl # … and sort! So simple.
 
 def findCVerInCList(lst:list,ver:str):
     for idx in range(len(lst)):
@@ -220,6 +244,7 @@ def findCVerInCList(lst:list,ver:str):
     else: return 0 # Break out, you're too outdated, mate.
     return idx
 
+# Trying to automate stuff, like the GUI
 def scanForNintendo3DSSD()->list:
         try:
             mount_points = psutil.disk_partitions()
@@ -247,7 +272,9 @@ print("CTGP-7 Update/Installation Tool v1.1")
 try:
     if len(argv)>1 and argv[1].upper()!="INSTALL":
         installPath = argv[1]
+        # User already supplied path
     else:
+        # if not, try finding SD Card ourselves...
         candidates = scanForNintendo3DSSD()
         if len(candidates)==1:
             installPath=candidates[0]
