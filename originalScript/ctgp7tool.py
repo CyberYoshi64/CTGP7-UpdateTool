@@ -390,6 +390,7 @@ An update is not feasible for the following potential reasons:
             raise Exception("Not enough free space on destination folder.\nAdditional {} are required to proceed with the installation.".format(mkSzFmt(totalDownloadSize + _SLACK_FREE_SPACE - storageSpace, "%.1f", 1)))
         
     else:
+        a=False
         if curver == len(changelog)-1:
             print("You're up-to-date already. No updates can be performed.")
             exit(0)
@@ -432,6 +433,11 @@ An update is not feasible for the following potential reasons:
                 j = c.importFromPend(a,j)
                 flist_presort.append((c.fileMethod, c.filePath, c.forVersion))
 
+        if not a:
+            print("Ready to update to {}!".format(versionToUpdateTo))
+            try: a=input("Would you like to continue? [Y/N] ").upper()[0]=="Y"
+            except: a=False
+            if not a: raise Exception(_STR_USERABORT)
     flist = parseAndSortDlList(flist_presort)
     appProgress=2
     dlTotal = len(flist) # Convenience variable
