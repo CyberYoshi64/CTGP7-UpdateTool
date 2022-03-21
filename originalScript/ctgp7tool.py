@@ -138,15 +138,13 @@ def downloadToFileWIndicator(url:str, path:str, prefix:str="", newLine:bool=True
     contentLength = int(u.getheader("Content-Length"))
     writeProg = 0; indicatorStr = "\x1b[2K"+"%s "%(prefix)+"... "
     if doprint: print(indicatorStr,end="\r")
-    block_sz = 8192
     try: os.stat(fullpath+".part") # Instead of writing to the file directly …
     except: pass
     else: os.remove(fullpath+".part") # … write to a .part file …
     with open(fullpath+".part","xb") as outfile:
         while True:
-            buffer = u.read(block_sz)
-            if not buffer:
-                break
+            buffer = u.read(4096)
+            if not buffer: break
             
             writeProg += len(buffer)
             outfile.write(buffer)
