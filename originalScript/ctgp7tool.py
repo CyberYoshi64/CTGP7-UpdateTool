@@ -1,17 +1,16 @@
 #!/usr/bin/python3
 
-import shutil
 from urllib.request import urlopen
 from sys import argv
-import os, struct, psutil, time
+import os, struct, psutil, shutil, time
 
-_FILELIST_METHODS = ["M","D","T","F","S"] # Modify, Delete, To (rename), From (rename), Storage space required
+_FILELIST_METHODS = ["M","D","T","F","S"] # Modified, Deleted, To (rename), From (rename), Space
 _BASE_URL_DYN_LINK = "https://ctgp7.page.link/baseCDNURL" # Future-proof, CTGP-7 updates will be on a CDN
 _INSTALLER_FILE_DIFF = "installinfo.txt" # Installer
 _UPDATER_CHGLOG_FILE = "changeloglist" # Updater
 _UPDATER_FILE_URL = "https://github.com/PabloMK7/CTGP-7updates/releases/download/v{}/filelist.txt" # Updater
 _FILES_LOCATION = "data" # https://[baseCDN]/data/... - Where the files are located
-_LATEST_VER_LOCATION = "latestver" # No idea why Pablo uses this, I can just get it from the changelog
+_LATEST_VER_LOCATION = "latestver" # Used by installer
 _DL_ATTEMPT_TOTALCNT = 30 # 30 attempts... generous, if I'm honest
 _VERSION_FILE_PATH = "/CTGP-7/config/version.bin"
 _PENDINGUPDATE_PATH = "/CTGP-7/config/pendingUpdate.bin"
@@ -75,7 +74,7 @@ class FileListEntry:
                     fout[fout.rfind("/")+1:]
                 ))
                 except KeyboardInterrupt: usrCancel=True; break
-                except Exception as e: print(e); exit()
+                except Exception as e: print("[fail]",e)
                 else: break
             shownDlCounter += 1
         if self.fileMethod == "D": # Deleted
@@ -378,12 +377,22 @@ An update is not feasible for the following potential reasons:
             os.rename(srcfolder,backupfolder)
             print("The backup of the CTGP-7 save is found in:\n%s"%backupfolder)
         url = baseURL+_INSTALLER_FILE_DIFF
+        
         for dlAttempt in range(_DL_ATTEMPT_TOTALCNT):
             try: installerList = downloadWithIndicator(url).decode("utf8")
             except KeyboardInterrupt: usrCancel = True; break
             except Exception as dlExcept: pass
             else: break
         else: raise Exception("Failed obtaining the file lists:\n{}".format(dlExcept))
+        if usrCancel: raise Exception(_STR_USERABORT)
+        
+        url = baseURL+_LATEST_VER_LOCATION
+        for dlAttempt in range(_DL_ATTEMPT_TOTALCNT):
+            try: versionToUpdateTo = downloadWithIndicator(url).decode("utf8")
+            except KeyboardInterrupt: usrCancel = True; break
+            except Exception as dlExcept: pass
+            else: break
+        else: raise Exception("Failed obtaining the latest version:\n{}".format(dlExcept))
         if usrCancel: raise Exception(_STR_USERABORT)
         installerList=installerList.split("\n")
         for i in installerList:
