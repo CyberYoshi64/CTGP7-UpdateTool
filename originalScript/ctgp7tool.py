@@ -8,7 +8,7 @@ _FILELIST_METHODS = ["M","D","T","F","S"] # Modified, Deleted, To (rename), From
 _BASE_URL_DYN_LINK = "https://ctgp7.page.link/baseCDNURL" # Future-proof, CTGP-7 updates will be on a CDN
 _INSTALLER_FILE_DIFF = "installinfo.txt" # Installer
 _UPDATER_CHGLOG_FILE = "changeloglist" # Updater
-_UPDATER_FILE_URL = "https://github.com/PabloMK7/CTGP-7updates/releases/download/v{}/filelist.txt" # Updater
+_UPDATER_FILE_URL = "fileListPrefix.txt" # Updater
 _FILES_LOCATION = "data" # https://[baseCDN]/data/... - Where the files are located
 _LATEST_VER_LOCATION = "latestver" # Used by installer
 _DL_ATTEMPT_TOTALCNT = 30 # 30 attempts... generous, if I'm honest
@@ -270,6 +270,7 @@ shownDlTotal = 0; shownDlCounter = 0
 dlCounter = 0; dlTotal = 0; usrCancel = False
 fileMng_OldFileName = "" # New way I will treat "F"
 versionToUpdateTo = ""; tooInstalling = False
+updateFlistPrefix = ""; dlExcept = ""
 
 print("CTGP-7 Update/Installation Tool v1.1")
 
@@ -313,6 +314,7 @@ if you want to use the automatic detection.""".format(" and mounted it"*int(os.n
     if not checkForValidSD(installPath):
         raise Exception("User aborted operation.")
     print("Preparing...")
+    
     for dlAttempt in range(_DL_ATTEMPT_TOTALCNT):
         try: baseURL = urlopen(_BASE_URL_DYN_LINK, timeout=10).read().decode("utf8")
         except KeyboardInterrupt: usrCancel = True; break
@@ -321,6 +323,16 @@ if you want to use the automatic detection.""".format(" and mounted it"*int(os.n
     else: raise Exception("Failed preparing the updater:\n{}".format(dlExcept))
     if usrCancel: raise Exception(_STR_USERABORT)
     baseURL = baseURL.strip()
+
+    url = baseURL+_UPDATER_FILE_URL
+    for dlAttempt in range(_DL_ATTEMPT_TOTALCNT):
+        try: updateFlistPrefix = downloadWithIndicator(url).decode("utf8").strip()
+        except KeyboardInterrupt: usrCancel = True; break
+        except Exception as dlExcept: pass
+        else: break
+    else: raise Exception("Failed obtaining the latest version:\n{}".format(dlExcept))
+    if usrCancel: raise Exception(_STR_USERABORT)
+    
     os.makedirs(installPath+"/3ds",exist_ok=True)
     os.makedirs(installPath+"/CTGP-7",exist_ok=True)
     appProgress = 1
@@ -419,7 +431,7 @@ An update is not feasible for the following potential reasons:
             for i in range(curver, len(changelog)):
                 print("\x1b[2K({:.1%}) Obtaining file lists...".format((i-curver)/fmax),end="\r")
                 for dlAttempt in range(_DL_ATTEMPT_TOTALCNT):
-                    try: fliststr = downloadWithIndicator(_UPDATER_FILE_URL.format(changelog[i][0]))
+                    try: fliststr = downloadWithIndicator(updateFlistPrefix % changelog[i][0])
                     except KeyboardInterrupt: raise Exception(_STR_USERABORT)#usrCancel = True; break
                     except Exception as dlExcept: pass
                     else: break
