@@ -273,22 +273,19 @@ try:
 If this path is not correct, press Ctrl+C and specify
 the path as an argument.\n"""%installPath)
         elif len(candidates):
-            print("Detected amount of SD Cards: {}\n")
+            print("Detected amount of SD Cards: {}\n".format(len(candidates)))
             for i in candidates:
-                try: os.stat(i+"CTGP-7")
+                try: os.stat(os.path.join(i, "CTGP-7"))
                 except: j=""
-                else: j="[installed]"
-                print("{}{}".format(\
-                    "..."*(len(i)>32)+i[-32:],\
-                    j
-                ))
+                else: j=" [installed]"
+                print("{}{}".format("..."*(len(i)>32)+i[-32:], j))
             print("\nPlease specify as an argument, which SD Card you would like.")
             exit(2)
         else:
             print("""No SD Card found or path specified.
 
-Make sure that you plugged in your Nintendo 3DS SD Card{}.
-if you want to use the automatic detection.""".format(" and mounted it"*int(os.name!="nt")))
+If you want to use the automatic detection,
+make sure the SD Card is mounted.""")
             exit(3)
 
     for i in range(1,len(argv)):
@@ -298,9 +295,10 @@ if you want to use the automatic detection.""".format(" and mounted it"*int(os.n
     if installPath[-6:]=="CTGP-7": installPath=installPath[:-7]
 
     if not checkForValidSD(installPath):
-        raise Exception("User aborted operation.")
+        raise Exception(_STR_USERABORT)
     print("\nPreparing...")
     
+    # Get base URL
     for dlAttempt in range(_DL_ATTEMPT_TOTALCNT):
         try: baseURL = urlopen(_BASE_URL_DYN_LINK, timeout=10).read().decode("utf8")
         except KeyboardInterrupt: usrCancel = True; break
@@ -309,7 +307,8 @@ if you want to use the automatic detection.""".format(" and mounted it"*int(os.n
     else: raise Exception("Failed preparing the updater:\n{}".format(dlExcept))
     if usrCancel: raise Exception(_STR_USERABORT)
     baseURL = baseURL.strip()
-
+    
+    # Get URL for file lists
     url = baseURL+_UPDATER_FILE_URL
     for dlAttempt in range(_DL_ATTEMPT_TOTALCNT):
         try: updateFlistPrefix = downloadWithIndicator(url).decode("utf8").strip()
@@ -319,8 +318,11 @@ if you want to use the automatic detection.""".format(" and mounted it"*int(os.n
     else: raise Exception("Failed obtaining the latest version:\n{}".format(dlExcept))
     if usrCancel: raise Exception(_STR_USERABORT)
     
+    # Make folders
     os.makedirs(installPath+"/3ds",exist_ok=True)
     os.makedirs(installPath+"/CTGP-7",exist_ok=True)
+    
+    # Obtain changelog and parse it …
     appProgress = 1
     url = baseURL+_UPDATER_CHGLOG_FILE; curver = 0
     for dlAttempt in range(_DL_ATTEMPT_TOTALCNT):
@@ -330,6 +332,8 @@ if you want to use the automatic detection.""".format(" and mounted it"*int(os.n
         else: break
     else: raise Exception("Failed obtaining the changelog:\n{}".format(dlExcept))
     if usrCancel: raise Exception(_STR_USERABORT)
+    
+    # … then ensure the current version is supported (or file doesn't exist/was changed)
     try: os.stat(installPath+_VERSION_FILE_PATH)
     except: confidence2Install=True; deviceSussy = True
     else:
@@ -351,8 +355,9 @@ Proceeding will wipe this installation.
             try: a=input("Continue anyway? [Y/N] ").upper()[0]=="Y"
             except: a=False
             if not a: raise Exception(_STR_USERABORT)
-    print("Taking action: "+("Update","(Re-)Install")[bool(confidence2Install)])
     
+    # We're sure to update or reinstall (if user wants to continue)
+    print("Taking action: "+("Update","(Re-)Install")[bool(confidence2Install)])
     flist_presort = []
     
     if confidence2Install:
@@ -376,15 +381,18 @@ If you have a save file, it will be backed up.
             try: a=input("Continue anyway? [Y/N] ").upper()[0]=="Y"
             except: a=False
             if not a: raise Exception(_STR_USERABORT)
-        srcfolder = os.path.join(installPath,"CTGP-7","savefs")
-        backupfolder = os.path.join(installPath,"CTGP-7savebak")
+        
+        # Backing up save, if it exists…
+        srcfolder = os.path.join(installPath, "CTGP-7", "savefs")
+        backupfolder = os.path.join(installPath, "CTGP-7savebak")
         if (os.path.exists(srcfolder)):
             if (os.path.exists(backupfolder)):
                 shutil.rmtree(backupfolder)
             os.rename(srcfolder,backupfolder)
             print("\nThe backup of the CTGP-7 save data is found in:\n%s"%backupfolder)
-        url = baseURL+_INSTALLER_FILE_DIFF
         
+        # get list of files to download
+        url = baseURL+_INSTALLER_FILE_DIFF
         for dlAttempt in range(_DL_ATTEMPT_TOTALCNT):
             try: installerList = downloadWithIndicator(url).decode("utf8")
             except KeyboardInterrupt: usrCancel = True; break
@@ -393,6 +401,7 @@ If you have a save file, it will be backed up.
         else: raise Exception("Failed preparing installation:\n{}".format(dlExcept))
         if usrCancel: raise Exception(_STR_USERABORT)
         
+        # what's the latest version to use?
         url = baseURL+_LATEST_VER_LOCATION
         for dlAttempt in range(_DL_ATTEMPT_TOTALCNT):
             try: versionToUpdateTo = downloadWithIndicator(url).decode("utf8")
@@ -401,72 +410,92 @@ If you have a save file, it will be backed up.
             else: break
         else: raise Exception("Failed obtaining the latest version:\n{}".format(dlExcept))
         if usrCancel: raise Exception(_STR_USERABORT)
+        
+        # Parse the list.
         installerList=installerList.split("\n")
         for i in installerList:
             if i=="": break
             flist_presort.append((i[0],i[1:],0))
+            
+        # BUG: Wait... this looks wrong.
         storageSpace = psutil.disk_usage(installPath).free
         print("\nRemoving the previous installation..."); shutil.rmtree(installPath+"/CTGP-7")
-        if storageSpace < (totalDownloadSize + _SLACK_FREE_SPACE):
-            raise Exception("Not enough space available for installation.\nAdditional {} required to start installation.".format(mkSzFmt(totalDownloadSize + _SLACK_FREE_SPACE - storageSpace, "%.1f", 1)))
         
     else:
-        a=False
-        print("Current version: %s"%configBinary)
+        a=False; print("Current version: %s"%configBinary)
+        
+        # Up-to-date already, quit immediately
         if curver == len(changelog)-1:
             fileDelete(installPath+_PENDINGUPDATE_PATH)
             print("No updates available at this time. Try again later.")
             exit(0)
+        
+        # Not up-to-date, but is there an update pending?
         try:
             os.stat(installPath+_PENDINGUPDATE_PATH)
-        except:
-            # When no update is pending.
+        
+        except: # if not…
+            
+            # Gather all file lists up to latest version …
             fmax = len(changelog) - curver; fliststr=b''
             for i in range(curver, len(changelog)):
                 print("({:6.1%}) Searching for updates...".format((i-curver)/fmax),end="\r")
                 for dlAttempt in range(_DL_ATTEMPT_TOTALCNT):
                     try: fliststr = downloadWithIndicator(updateFlistPrefix % changelog[i][0])
-                    except KeyboardInterrupt: raise Exception(_STR_USERABORT)#usrCancel = True; break
+                    except KeyboardInterrupt: raise Exception(_STR_USERABORT)
                     except Exception as dlExcept: pass
                     else: break
                 else: raise Exception("Failed preparing the update:\n{}".format(dlExcept))
-                if usrCancel: raise Exception(_STR_USERABORT)
                 flistprs=fliststr.decode("utf8").split("\n")
                 for j in flistprs:
                     if j=="": break
                     flist_presort.append((j[0],j[1:],i))
-            print("Got file lists!"+" "*28)
-        else:
+            print("Got file lists!"+" "*28) # Windows doesn't like escape codes much
+            print("\nThe update to {} is ready!".format(versionToUpdateTo))
+            try: a=input("Would you like to continue? [Y/N] ").upper()[0]=="Y"
+            except: a=False
+            if not a: raise Exception(_STR_USERABORT)
+        else: # update is pending, so …
+        
+            # Open file and get back the file list …
             pendupdf = open(installPath+_PENDINGUPDATE_PATH,"rb")
+            
             dlTotal, = struct.unpack("<I",pendupdf.read(4))
+            
             versionToUpdateTo = b''
-            while True:
+            while True: # FIXME: no verification, trusting file as-is; will likely backfire
                 char = pendupdf.read(1)
                 if char != b'\0': versionToUpdateTo += char
                 else: break
             versionToUpdateTo = versionToUpdateTo.decode("utf8")
+            
+            # Asking user to continue update
             print("A pending update to {} was detected!".format(versionToUpdateTo))
             try: a=input("Would you like to continue that update? [Y/N] ").upper()[0]=="Y"
             except: a=False
             if not a: raise Exception(_STR_USERABORT)
+            
             a = pendupdf.read()
             pendupdf.close(); j=0
+            
+            # FIXME: Cheap approach; why not making it a standalone function?
             for i in range(dlTotal):
                 c = FileListEntry()
                 j = c.importFromPend(a,j)
                 flist_presort.append((c.fileMethod, c.filePath, c.forVersion))
 
-        if not a:
-            print("The update to {} is ready!".format(versionToUpdateTo))
-            try: a=input("Would you like to continue? [Y/N] ").upper()[0]=="Y"
-            except: a=False
-            if not a: raise Exception(_STR_USERABORT)
-    flist = parseAndSortDlList(flist_presort)
-    appProgress=2
-    dlTotal = len(flist) # Convenience variable
-    for dlCounter in range(len(flist)):
+    flist = parseAndSortDlList(flist_presort); appProgress=2
+    
+    # No idea why that was further up; soryy :sweat_face:
+    if storageSpace < (totalDownloadSize + _SLACK_FREE_SPACE):
+        raise Exception("Not enough space available.\nAdditional {} required to proceed.".format(mkSzFmt(totalDownloadSize + _SLACK_FREE_SPACE - storageSpace, "%.1f", 1)))
+    
+    dlTotal = len(flist)
+    for dlCounter in range(dlTotal):
         flist[dlCounter].perform()
         if usrCancel: raise Exception(_STR_USERABORT)
+    
+    # Download done, check for tooInstall
     appProgress=3
     try: os.stat(installPath+_TOOINSTALL_PATH+".3dsx")
     except: pass
@@ -477,9 +506,10 @@ If you have a save file, it will be backed up.
     try: os.stat(installPath+_TOOINSTALL_PATH+".cia")
     except: pass
     else:
-        tooInstalling = True
         fileMove(installPath+_TOOINSTALL_PATH+".cia", installPath+_TOOINSTALL_CIA_PATH+".cia")
+        tooInstalling = True
 
+    # Cleaning up and setting version
     fileDelete(installPath+_PENDINGUPDATE_PATH)
     fileDelete(installPath+_VERSION_FILE_PATH)
     configBinFD = open(installPath+_VERSION_FILE_PATH,"xb")
@@ -490,25 +520,28 @@ If you have a save file, it will be backed up.
     if tooInstalling: showTooInstallMsg()
     exit(0)
 except (KeyboardInterrupt, EOFError):
-    pass
+    pass # Don't throw weird errors, just exit.
 except Exception as e:
     print("An error has occured: %s"%e)
 
-print("\nCleaning up...")
 if appProgress>=2 and appProgress<4:
+    
+    print("\nCleaning up...")
+    
     # If update failed or user aborted, save the file lists in pendingupdate.bin
     os.makedirs(os.path.join(installPath,"CTGP-7","config"),exist_ok=True)
     a=os.path.join(installPath+"CTGP-7")
     fileDelete(a+flist[dlCounter].filePath+_FILEDWN_PART_EXT)
     if not confidence2Install:
-	    a=installPath+_PENDINGUPDATE_PATH
-    	fileDelete(a+_FILEDWN_PART_EXT)
-    	pendupdf = open(a+_FILEDWN_PART_EXT,"xb")
-    	pendupdf.write(struct.pack("I",dlTotal-dlCounter))
-    	pendupdf.write(versionToUpdateTo.encode("utf8")+b'\0')
-    	for i in range(dlCounter, dlTotal):
-        	pendupdf.write(flist[i].export())
-    	pendupdf.close()
-		fileMove(a+_FILEDWN_PART_EXT,a)
+        a=installPath+_PENDINGUPDATE_PATH
+        fileDelete(a+_FILEDWN_PART_EXT)
+        pendupdf = open(a+_FILEDWN_PART_EXT,"xb")
+        pendupdf.write(struct.pack("I",dlTotal-dlCounter))
+        pendupdf.write(versionToUpdateTo.encode("utf8")+b'\0')
+        for i in range(dlCounter, dlTotal):
+            pendupdf.write(flist[i].export())
+        pendupdf.close()
+        fileMove(a+_FILEDWN_PART_EXT,a)
+
 if tooInstalling: showTooInstallMsg()
-exit(1)
+exit(1) # An error had occured, or user exited
