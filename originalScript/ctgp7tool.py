@@ -417,9 +417,8 @@ If you have a save file, it will be backed up.
             if i=="": break
             flist_presort.append((i[0],i[1:],0))
             
-        # BUG: Wait... this looks wrong.
-        storageSpace = psutil.disk_usage(installPath).free
-        print("\nRemoving the previous installation..."); shutil.rmtree(installPath+"/CTGP-7")
+        print("\nRemoving the previous installation...")
+        shutil.rmtree(os.path.join(installPath, "CTGP-7"))
         
     else:
         a=False; print("Current version: %s"%configBinary)
@@ -486,8 +485,10 @@ If you have a save file, it will be backed up.
 
     flist = parseAndSortDlList(flist_presort); appProgress=2
     
-    # No idea why that was further up; soryy :sweat_face:
-    if storageSpace < (totalDownloadSize + _SLACK_FREE_SPACE):
+    # My code is so bad, I keep messing up. :weary:
+    # If download size was specified, check against current storage space
+    storageSpace = psutil.disk_usage(installPath).free
+    if totalDownloadSize > 0 and storageSpace < (totalDownloadSize + _SLACK_FREE_SPACE):
         raise Exception("Not enough space available.\nAdditional {} required to proceed.".format(mkSzFmt(totalDownloadSize + _SLACK_FREE_SPACE - storageSpace, "%.1f", 1)))
     
     dlTotal = len(flist)
