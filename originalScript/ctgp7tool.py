@@ -23,15 +23,14 @@ _SLACK_FREE_SPACE = 19851264 # Potential space used during installation (besides
 # Console-only, have to obnoxiously await any chance for pesky users to abort.
 _STR_USERABORT = "The user aborted the operation." # It appears so often, no need to type it out everywhere.
 
-def fileMove(oldf:str, newf:str)->None:
-    try: os.stat(newf)
-    except: pass
-    else: os.remove(newf)
+def fileDelete(file:str) -> None:
+    try: os.stat(file)    # Windows refuses to rename
+    except: pass          # if destination exists, so
+    else: os.remove(file) # delete beforehand.
+
+def fileMove(oldf:str, newf:str) -> None:
+    fileDelete(newf)
     os.rename(oldf,newf)
-def fileDelete(file:str)->None:
-    try: os.stat(file)
-    except: pass
-    else: os.remove(file)
 
 # File List struct from:
 # https://github.com/PabloMK7/CTGP-7_Launcher/blob/master/source/updater.c#L15-L20
@@ -51,7 +50,7 @@ class FileListEntry:
             self.filePath.encode("utf8") + b'\0' # null-byte as string can be any length
     
     # Import from pendingUpdate.bin
-    def importFromPend(self,fdb,off)->int:
+    def importFromPend(self,fdb,off) -> int:
         self.fileMethod = chr(fdb[off])
         self.forVersion, = struct.unpack("<I",fdb[off+1:off+5])
         self.filePath = b''
@@ -61,7 +60,6 @@ class FileListEntry:
         self.filePath = self.filePath.decode("utf8")
         return off+1
 
-    # Aw shit, here we go again...
     def perform(self) -> int:
         global baseURL, shownDlCounter, shownDlTotal
         global fileMng_OldFileName, usrCancel
@@ -78,6 +76,7 @@ class FileListEntry:
                 except KeyboardInterrupt: usrCancel=True; break
                 except Exception as e: print("[fail]",e)
                 else: break
+            else: raise Exception("Failed to download '{}'.\nPlease try again later.".format(fout[fout.rfind("/")+1:]))
             shownDlCounter += 1
         if self.fileMethod == "D": # Delete
             fileDelete(fout)
@@ -501,14 +500,15 @@ if appProgress>=2 and appProgress<4:
     os.makedirs(os.path.join(installPath,"CTGP-7","config"),exist_ok=True)
     a=os.path.join(installPath+"CTGP-7")
     fileDelete(a+flist[dlCounter].filePath+_FILEDWN_PART_EXT)
-    a=installPath+_PENDINGUPDATE_PATH
-    fileDelete(a+_FILEDWN_PART_EXT)
-    pendupdf = open(a+_FILEDWN_PART_EXT,"xb")
-    pendupdf.write(struct.pack("I",dlTotal-dlCounter))
-    pendupdf.write(versionToUpdateTo.encode("utf8")+b'\0')
-    for i in range(dlCounter, dlTotal):
-        pendupdf.write(flist[i].export())
-    pendupdf.close()
-    fileMove(a+_FILEDWN_PART_EXT,a)
+    if not confidence2Install:
+	    a=installPath+_PENDINGUPDATE_PATH
+    	fileDelete(a+_FILEDWN_PART_EXT)
+    	pendupdf = open(a+_FILEDWN_PART_EXT,"xb")
+    	pendupdf.write(struct.pack("I",dlTotal-dlCounter))
+    	pendupdf.write(versionToUpdateTo.encode("utf8")+b'\0')
+    	for i in range(dlCounter, dlTotal):
+        	pendupdf.write(flist[i].export())
+    	pendupdf.close()
+		fileMove(a+_FILEDWN_PART_EXT,a)
 if tooInstalling: showTooInstallMsg()
 exit(1)
