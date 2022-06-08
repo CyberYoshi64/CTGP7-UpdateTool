@@ -27,6 +27,7 @@ class CTGP7Updater:
         self.isStopped = False
         self.downloadSize = 0
         
+    def fetchDefaultCDNURL(self):
         try:
             self.baseURL = self._downloadString(CTGP7Updater._BASE_URL_DYN_LINK).replace("\r", "").replace("\n", "")
         except Exception as e:

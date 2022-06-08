@@ -41,6 +41,7 @@ class CTGP7InstallerWorker(QRunnable):
         try:
             self.logData({"m": "Starting CTGP-7 Installation..."})
             self.updater = CTGP7Updater(True)
+            self.updater.fetchDefaultCDNURL()
             self.updater.setLogFunction(self.logData)
             self.updater.setBaseDirectory(self.basedir)
             self.updater.cleanInstallFolder()
