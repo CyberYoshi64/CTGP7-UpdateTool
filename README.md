@@ -1,45 +1,33 @@
-# CTGP-7 Updater Script
+# CTGP-7 Update Tool
 
-This is a work-in-progress Python script mimicking CTGP-7's official updater, based on own observations, analysis of the [archived launcher's source code](https://github.com/PabloMK7/CTGP-7_Launcher) and a bit of help from PabloMK7 himself.
+This is a work-in-progress Python script mimicking CTGP-7's official updater, based on own observations, analysis of the [archived launcher's source code](https://github.com/PabloMK7/CTGP-7_Launcher) and lots of help from PabloMK7 himself.
 
 Supported platforms: Linux, Windows
 
-Modules needed: `requests`, `time`
+## GUI version
 
-Syntax: `python ctgp7upd.py [folder] [-h] [-p] [-s] [-a]`
+**Warning:** The GUI version currently is only for (re-)installing CTGP-7.
 
-- `folder` — Path to a valid CTGP-7 folder to update in
-- `-h` — Show this help
-- `-p` — Show full path of downloaded file
-- `-s` — Show files removed/renamed (Name will change color appropriately)
-- `-a` — Same behaviour as `-p -s`
+Modules needed: `pyside2`, `psutil`
 
-If specifying `folder`, it can be relative, but it was intended to be absolute through drag'n'dropping the CTGP-7 folder.
+(Should you not have these modules, install them with `pip install pyside2 psutil`)
 
-If `folder` isn't specified as an argument, the script will ask for a valid path, which can also be used to drag'n'drop the CTGP-7 folder in the prompt or enter the path to the CTGP-7 folder, inclusive.
+Simply launch `main.py`.
+On Linux, you might need to call it in a terminal using `python main.py`.
 
-If it doesn't work and you can help with the script, please file an issue. **Pull requests could be used, but cannot be merged, due to the way my Git setup works**
+## Console version
 
-## Author notes
+The console version allows updating an existing CTGP-7 installation and also performing a fresh installation.
 
-### Where's my progress bar?
+Modules needed: `psutil`
 
-Standard Python `requests` do not make use of callback/intermediary functions while they're processing. Unless I move to another module and learn its command set, this is the best I can do.
+(Should you not have this module, install it with `pip install psutil`)
 
-### How updates exactly work in this script
+The script is located in the `originalScript` folder.
 
-The script first downloads the changelog, reads all the version numbers and dedicated info into a tuple list, to then check the local version against the list.
+The script will automatically check for the SD Card to install/update on. Make sure you inserted the SD Card before running this tool.
+(On Linux, you might have to manually mount the SD Card, if your desktop environment isn't doing it automatically.)
 
-From there, if the version is outdated, I read all file lists up to the latest version to then download and insert in the main loop.
+Should there be multiple Nintendo 3DS SD Cards mounted, or your SD Card is not detected, please specify the path to the SD Card (such as `E:` (Windows) or `/media/user/SDCARD` (Linux)) as an argument. (Drag'n'dropped folders are also supported)
 
-After that's done, I edit the version file to reflect the changes appropriately. (Don't confuse the official launcher to redownload the update.)
-
-However, if the update includes a new launcher package, the user is told to install the new launcher themself. ***This script is not capable to install the CIA for the user. Only the 3DSX is able to be copied over, which this tool isn't doing either, at the moment.***
-
-### Why is its output so confined and clean?
-
-While I originally wanted this to be more duck-taped, PabloMK7 kicked my motivation to make this updater as true to the official updater as I can, this also includes the console output looking clean.
-
-### What on earth is this code looking like?
-
-The way I coded it, is quite rubbish, but I'll refine the codeflow over time.
+Specify `install` as an argument to ignore checking for updates and (re)install the mod.
