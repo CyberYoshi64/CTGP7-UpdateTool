@@ -114,22 +114,12 @@ class Window(QMainWindow, Ui_MainWindow):
         except Exception as e:
             self.installOnError("Failed to create save backup: {}".format(e))
             return False
-            
+
     def scanForNintendo3DSSD(self):
-        try:
-            mount_points = psutil.disk_partitions()
-            candidates = []
-            for m in mount_points:
-                try:
-                    if (os.path.exists(os.path.join(m.mountpoint, "Nintendo 3DS"))):
-                        candidates.append(m.mountpoint)
-                except:
-                    pass
-            if (len(candidates) == 1):
-                self.sdRootText.setText(candidates[0])
-        except:
-            pass
-        
+        folder = CTGP7Updater.findNintendo3DSRoot()
+        if (folder is not None):
+            self.sdRootText.setText(folder)
+
 
     def startStopButtonPress(self):
         if (self.startButtonState == 1):

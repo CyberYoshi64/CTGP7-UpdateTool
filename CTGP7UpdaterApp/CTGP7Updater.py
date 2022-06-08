@@ -82,6 +82,9 @@ class CTGP7Updater:
     def stop(self):
         self.isStopped = True
 
+    def setBaseURL(self, url):
+        self.baseURL = url
+
     def setLogFunction(self, func):
         self.logFunction = func
 
@@ -124,6 +127,23 @@ class CTGP7Updater:
             available_space = psutil.disk_usage(self.basePath).free
             if (self.downloadSize + CTGP7Updater._SLACK_FREE_SPACE > available_space):
                 raise Exception("Not enough free space on destination folder. Additional {} MB needed to proceed with installation.".format((self.downloadSize + CTGP7Updater._SLACK_FREE_SPACE - available_space) // 1000000))
+
+    @staticmethod
+    def findNintendo3DSRoot():
+        try:
+            mount_points = psutil.disk_partitions()
+            candidates = []
+            for m in mount_points:
+                try:
+                    if (os.path.exists(os.path.join(m.mountpoint, "Nintendo 3DS"))):
+                        candidates.append(m.mountpoint)
+                except:
+                    pass
+            if (len(candidates) == 1):
+                return candidates[0]
+        except:
+            pass
+        return None
 
     def startUpdate(self):
         mainfolder = os.path.join(self.basePath, "CTGP-7")
