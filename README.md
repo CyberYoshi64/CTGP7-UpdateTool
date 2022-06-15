@@ -23,7 +23,7 @@ Modules needed: `psutil`
 
 (Should you not have this module, install it with `pip install psutil`)
 
-The script is located in the `originalScript` folder.
+The script is named `ctgp7ConsoleUpdater.py`.
 
 The script will automatically check for the SD Card to install/update on. Make sure you inserted the SD Card before running this tool.
 (On Linux, you might have to manually mount the SD Card, if your desktop environment isn't doing it automatically.)

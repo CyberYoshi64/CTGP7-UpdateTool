@@ -1,7 +1,10 @@
+import imp
 import os
 from urllib.request import urlopen
 import shutil
 import psutil
+import struct
+from typing import List
 
 class CTGP7Updater:
 
@@ -9,10 +12,96 @@ class CTGP7Updater:
     _INSTALLER_FILE_DIFF = "installinfo.txt"
     _FILES_LOCATION = "data"
     _LATEST_VER_LOCATION = "latestver"
-    _UPDATE_FILEFLAGMD = ["M","D","T","F","S"]
     _DL_ATTEMPT_TOTALCNT = 30
     _VERSION_FILE_PATH = "config/version.bin"
     _SLACK_FREE_SPACE = 20000000
+
+    class FileListEntry:
+
+        def __init__(self, ver, method, path, url) -> None:
+            self.filePath = path # File path
+            self.forVersion = ver # Unused, for compatibility with launcher
+            self.fileMethod = method
+            self.isStoppedCallback = None
+            self.fileProgressCallback = None
+            self.fileOnlyName = self.filePath[self.filePath.rfind(os.path.sep) + 1:]
+            self.url = url
+        
+        def setCallbacks(self, isStopped, progress):
+            self.isStoppedCallback = isStopped
+            self.fileProgressCallback = progress
+
+        # Export struct for pendingUpdate.bin
+        def exportToPend(self) -> bytes:
+            import struct
+            return struct.pack("<BI", \
+                ord(self.fileMethod),\
+                self.forVersion) + \
+                self.filePath.encode("utf8") + b'\0' # null-byte as string can be any length
+        
+        # Import from pendingUpdate.bin
+        def importFromPend(self,fdb,off) -> int:
+            self.fileMethod = chr(fdb[off])
+            self.forVersion, = struct.unpack("<I",fdb[off+1:off+5])
+            self.filePath = b''
+            for off in range(off+5,len(fdb)):
+                if fdb[off]: self.filePath += int.to_bytes(fdb[off],1,"little")
+                else: break
+            self.filePath = self.filePath.decode("utf8")
+            return off+1
+
+        def _downloadFIle(self): 
+            countRetry = 0
+            userCancel = False
+            while (True):
+                try:
+                    CTGP7Updater.mkFoldersForFile(self.filePath)
+                    u = urlopen(self.url, timeout=10)
+                    with open(self.filePath, 'wb') as downFile:
+
+                        fileDownSize = int(u.getheader("Content-Length"))
+
+                        fileDownCurr = 0
+                        block_sz = 1024 * 8
+                        while True:
+                            if (self.isStoppedCallback is not None and self.isStoppedCallback()):
+                                userCancel = True
+                                raise Exception("User cancelled installation")
+                            buffer = u.read(block_sz)
+                            if not buffer:
+                                break
+
+                            fileDownCurr += len(buffer)
+                            downFile.write(buffer)
+
+                            if (self.fileProgressCallback is not None):
+                                self.fileProgressCallback(fileDownCurr, fileDownSize, self.fileOnlyName)
+                        break
+                except Exception as e:
+                    if (countRetry >= CTGP7Updater._DL_ATTEMPT_TOTALCNT or userCancel):
+                        raise Exception("Failed to download file \"{}\": {}".format(self.fileOnlyName, e))
+                    else:
+                        countRetry += 1
+
+        def perform(self, lastPerformValue:str):
+            if self.fileMethod == "M": # Modify
+                self._downloadFIle()
+                return None
+            elif self.fileMethod == "D": # Delete
+                CTGP7Updater.fileDelete(self.url, self.filePath)
+                return None
+            elif self.fileMethod == "F": # (Rename) From
+                return self.filePath
+            elif self.fileMethod == "T": # (Rename) To
+                if (lastPerformValue is not None):
+                    CTGP7Updater.fileMove(lastPerformValue, self.filePath)
+                else:
+                    raise Exception("Rename to statement for \"{}\" is missing rename from statement".format(self.fileOnlyName))
+                return None
+            elif self.fileMethod == "I": # Ignore file
+                return lastPerformValue
+            else:
+                raise Exception("Unknown file mode: {}".format(self.fileMethod))
 
     def __init__(self, isInstaller=True) -> None:
         self.isInstaller = isInstaller
@@ -21,57 +110,67 @@ class CTGP7Updater:
         self.currDownloadCount = 0
         self.fileDownCurr = 0
         self.fileDownSize = 0
-        self.fileList = []
+        self.fileList:List[CTGP7Updater.FileListEntry] = [] 
         self.latestVersion = ""
         self.logFunction = None
         self.isStopped = False
         self.downloadSize = 0
-        
+        self.currentUpdateIndex = 0
+    
+    @staticmethod
+    def fileDelete(file:str) -> None:
+        try: os.stat(file)    # Windows refuses to rename
+        except: pass          # if destination exists, so
+        else: os.remove(file) # delete beforehand.
+
+    @staticmethod
+    def fileMove(oldf:str, newf:str) -> None:
+        CTGP7Updater.fileDelete(newf)
+        os.rename(oldf,newf)
+
     def fetchDefaultCDNURL(self):
         try:
             self.baseURL = self._downloadString(CTGP7Updater._BASE_URL_DYN_LINK).replace("\r", "").replace("\n", "")
         except Exception as e:
             raise Exception("Failed to init updater: {}".format(e))
         pass
-
-    def _mkFoldersForFile(self, fol:str):
+    
+    @staticmethod
+    def mkFoldersForFile(fol:str):
         g=fol[0:fol.rfind(os.path.sep)]
         os.makedirs(g, exist_ok=True)
     
     def _parseAndSortDlList(self, dll:list):
-        fileN=[]; fileM=[]; fileO=[]; newDl=[]; oldf=""
-        filemode=CTGP7Updater._UPDATE_FILEFLAGMD
+        allFilePaths=[]; allFileModes=[]; ret=[]; oldf=""
         self.downloadCount = 0
 
         for i in range(len(dll)):
-            ms=dll[i][0]; mf=dll[i][1]
+            mode=dll[i][0]; path=dll[i][1]
 
-            if ms=="S":
+            if mode=="S":
                 try:
-                    self.downloadSize = int(mf[1:])
+                    self.downloadSize = int(path[1:])
                 except Exception as e:
                     raise Exception("Failed to parse needed download size: {}".format(e))
-            elif ms=="F":
-                # Next element is expected to use method "T", which should be always true
-                # In order to prevent renaming without downloading first, just store as reference
-                oldf=mf
             else:
-                fileNC=-1
-                try: 	fileNC=fileN.index(mf)
-                except:
-                    fileN.append(mf); fileM.append(ms); fileO.append(oldf)
-                else:
-                    fileN.pop(fileNC); fileM.pop(fileNC); fileO.pop(fileNC)
-                    fileN.append(mf); fileM.append(ms); fileO.append(oldf)
-                oldf="" # Non-rename shouldn't have the reference
+                filePathIndex = 0
+                if (mode == "M" or mode == "D"):
+                    while (filePathIndex < len(allFilePaths)):
+                        if (path == allFilePaths[filePathIndex] and (allFileModes[filePathIndex] == "M" or allFileModes[filePathIndex] == "D")):
+                            allFileModes[filePathIndex] = "I"
+                        filePathIndex += 1
+                allFilePaths.append(path); allFileModes.append(mode)
         
-        #for m in filemode:
-        for i in range(len(fileN)):
-                #if fileM[i]==m:
-                if fileM[i]=="M": self.downloadCount+=1
-                newDl.append((filemode.index(fileM[i]), fileN[i], fileO[i]))
+        for i in range(len(allFilePaths)):
+            if allFileModes[i]=="M": self.downloadCount+=1
+            filePath = os.path.join(os.path.join(self.basePath, "CTGP-7"), allFilePaths[i].replace("/", os.path.sep)[1:])
+            url = self.baseURL + CTGP7Updater._FILES_LOCATION + allFilePaths[i]
+            ret.append(CTGP7Updater.FileListEntry(self.currentUpdateIndex, allFileModes[i], filePath, url))
 
-        return newDl
+        return ret
+
+    def _checkNeededExtraSpace(self, diskSpace):
+        return 0 if not self.downloadSize else max(0, self.downloadSize + CTGP7Updater._SLACK_FREE_SPACE - diskSpace)
 
     def _downloadString(self, url: str) -> str:
         try:
@@ -82,7 +181,13 @@ class CTGP7Updater:
 
     def stop(self):
         self.isStopped = True
+    
+    def _isStoppedCallback(self):
+        return self.isStopped
 
+    def _logFileProgressCallback(self, fileDownCurr, fileDownSize, fileOnlyName):
+        self._log("Downloading file {} of {}: \"{}\" ({:.2f}%)".format(self.currDownloadCount + 1, self.downloadCount, fileOnlyName, (fileDownCurr / fileDownSize) * 100))
+    
     def setBaseURL(self, url):
         self.baseURL = url
 
@@ -124,11 +229,11 @@ class CTGP7Updater:
                 raise Exception("Failed to get list of files: {}".format(e))
     
     def verifySpaceAvailable(self):
-        if (self.downloadSize):
-            available_space = psutil.disk_usage(self.basePath).free
-            if (self.downloadSize + CTGP7Updater._SLACK_FREE_SPACE > available_space):
-                raise Exception("Not enough free space on destination folder. Additional {} MB needed to proceed with installation.".format((self.downloadSize + CTGP7Updater._SLACK_FREE_SPACE - available_space) // 1000000))
-
+        available_space = psutil.disk_usage(self.basePath).free
+        neededSpace = self._checkNeededExtraSpace(available_space)
+        if (neededSpace > 0):
+            raise Exception("Not enough free space on destination folder. Additional {} MB needed to proceed with installation.".format(neededSpace // 1000000))
+    
     @staticmethod
     def findNintendo3DSRoot():
         try:
@@ -155,65 +260,14 @@ class CTGP7Updater:
         except Exception as e:
             raise Exception("Failed to create CTGP-7 directory: {}".format(e))
 
+        prevReturnValue = None
         self.currDownloadCount = 0
-        for i in range(len(self.fileList)):
-            if (self.isStopped):
-                raise Exception("User cancelled installation")
-            fmode=self.fileList[i][0]; f=self.fileList[i][1]; f1=self.fileList[i][2]
-            rep=0
-            if fmode==CTGP7Updater._UPDATE_FILEFLAGMD.index("M"):
+        for entry in self.fileList:
+            entry.setCallbacks(self._isStoppedCallback, self._logFileProgressCallback)
+            if (entry.fileMethod == "M"):
                 self.currDownloadCount += 1
-            url=self.baseURL + CTGP7Updater._FILES_LOCATION + f
-            filePath = os.path.join(mainfolder, f.replace("/", os.path.sep)[1:])
-            fileOnlyName = filePath[filePath.rfind(os.path.sep) + 1:]
-            if fmode==0:
-                countRetry = 0
-                while (True):
-                    try:
-                        self._prog(self.currDownloadCount + 1, self.downloadCount)
-                        self._mkFoldersForFile(filePath)
-                        u = urlopen(url, timeout=10)
-                        with open(filePath, 'wb') as downFile:
 
-                            self.fileDownSize = int(u.getheader("Content-Length"))
-
-                            self.fileDownCurr = 0
-                            block_sz = 1024 * 8
-                            while True:
-                                if (self.isStopped):
-                                    raise Exception("User cancelled installation")
-                                buffer = u.read(block_sz)
-                                if not buffer:
-                                    break
-
-                                self.fileDownCurr += len(buffer)
-                                downFile.write(buffer)
-
-                                self._log("Downloading file {} / {}: \"{}\" ({:.2f}%)".format(self.currDownloadCount + 1, self.downloadCount, fileOnlyName, (self.fileDownCurr / self.fileDownSize) * 100))
-                            break
-                    except Exception as e:
-                        if (countRetry >= CTGP7Updater._DL_ATTEMPT_TOTALCNT or self.isStopped):
-                            raise Exception("Failed to download file \"{}\": {}".format(filePath, e))
-                        else:
-                            pass
-            
-            elif fmode==1:
-                try: fsprop=os.stat(filePath)
-                except: pass
-                else:
-                    try:
-                        os.remove(filePath)
-                    except Exception as e:
-                        raise Exception("Failed to remove file \"{}\": {}".format(filePath, e))
-            elif fmode==2:
-                filePath1 = os.path.join(mainfolder, f1.replace("/", os.path.sep))
-                try: os.stat(filePath1)
-                except: raise Exception("Rename from file is missing: {}".format(filePath1))
-                else:
-                    try: os.rename(src=mainfolder+f1, dst=mainfolder+f)
-                    except Exception as e: raise Exception("Failed to rename file: {}".format(e))
-            else:
-                raise Exception("Unknown file mode: {}".format(fmode))
+            prevReturnValue = entry.perform(prevReturnValue)
 
         ciaFile = os.path.join(mainfolder, "cia", "CTGP-7.cia")
         tooInstallCiaFile = os.path.join(mainfolder, "cia", "tooInstall.cia")
