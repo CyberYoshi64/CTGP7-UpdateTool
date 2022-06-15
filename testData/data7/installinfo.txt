@@ -1,0 +1,4 @@
+F/test1.bin
+T/test2.bin
+F/test3.bin
+T/test4.bin

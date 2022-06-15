@@ -1,4 +1,5 @@
 import pathlib
+from turtle import update
 import pytest
 import http.server
 import socketserver
@@ -6,6 +7,7 @@ import multiprocessing
 import socket
 from contextlib import closing
 import os
+import filecmp
 
 from CTGP7UpdaterApp.CTGP7Updater import CTGP7Updater
 
@@ -78,13 +80,67 @@ class TestCTGP7Updater:
 
         assert updater._checkNeededExtraSpace(diskSpace) == extraSpace
 
-    @pytest.mark.parametrize("updater", ["data2"], indirect=["updater"])
-    def test_fetchinstallfilelistModify(self, updater: CTGP7Updater):
+    @pytest.mark.parametrize("updater,expectedList", [
+        ("data2", [
+            (0, "M", "/testfile1.bin", "/testfile1.bin"),
+        ]),
+        ("data3", [
+            (0, "M", "/testfile1.bin", "/testfile1.bin"),
+            (0, "D", "/testfile2.bin", "/testfile2.bin"),
+            (0, "F", "/testfile3.bin", "/testfile3.bin"),
+            (0, "T", "/testfile4.bin", "/testfile4.bin"),
+        ]),
+        ("data4", [
+            (0, "I", "/testfile1.bin", "/testfile1.bin"),
+            (0, "I", "/testfile2.bin", "/testfile2.bin"),
+            (0, "M", "/testfile1.bin", "/testfile1.bin"),
+            (0, "D", "/testfile2.bin", "/testfile2.bin"),
+            (0, "F", "/testfile1.bin", "/testfile1.bin"),
+            (0, "T", "/testfile3.bin", "/testfile3.bin"),
+        ]),
+        ], indirect=["updater"])
+    def test_fetchinstallfilelist(self, updater: CTGP7Updater, expectedList):
         updater.loadUpdateInfo()
-        fileList = [
-            CTGP7Updater.FileListEntry(0, "I", updater._buildFilePath("/testfile1.bin"), updater._buildFileURL("/testfile1.bin")),
-            CTGP7Updater.FileListEntry(0, "M", updater._buildFilePath("/testfile2.bin"), updater._buildFileURL("/testfile2.bin")),
-            CTGP7Updater.FileListEntry(0, "M", updater._buildFilePath("/testfile1.bin"), updater._buildFileURL("/testfile1.bin")),
-        ]
+        entries = []
+        for e in expectedList:
+            entries.append(CTGP7Updater.FileListEntry(e[0], e[1], updater._buildFilePath(e[2]), updater._buildFileURL(e[3])))
+        assert updater.fileList == entries
+    
+    @pytest.mark.parametrize("updater", ["data5"], indirect=["updater"])
+    def test_filedownload(self, updater: CTGP7Updater):
+        updater.loadUpdateInfo()
 
-        assert updater.fileList == fileList
+        lastRes = None
+        for e in updater.fileList:
+            lastRes = e.perform(lastRes)
+            assert filecmp.cmp(pathlib.Path("testData/data5/data/" + e.fileOnlyName).resolve(), e.filePath)
+
+    @pytest.mark.parametrize("updater", ["data6"], indirect=["updater"])
+    def test_filedelete(self, updater: CTGP7Updater):
+        updater.loadUpdateInfo()        
+
+        lastRes = None
+        for e in updater.fileList:
+            updater.mkFoldersForFile(e.filePath)
+            with open(e.filePath, "w") as f:
+                f.write("hello world")
+            lastRes = e.perform(lastRes)
+            assert not os.path.exists(e.filePath)
+
+    @pytest.mark.parametrize("updater", ["data7"], indirect=["updater"])
+    def test_filerename(self, updater: CTGP7Updater):
+        updater.loadUpdateInfo()        
+
+        lastRes = None
+        lastRandomVal = None
+        for e in updater.fileList:
+            if e.fileMethod == "F":
+                lastRandomVal = os.urandom(16)
+                updater.mkFoldersForFile(e.filePath)
+                with open(e.filePath, "wb") as f:
+                    f.write(lastRandomVal)
+            lastRes = e.perform(lastRes)
+            if e.fileMethod == "T":
+                assert os.path.exists(e.filePath)
+                with open(e.filePath, "rb") as f:
+                    assert f.read() == lastRandomVal

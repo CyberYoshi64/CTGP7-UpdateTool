@@ -1,0 +1,2 @@
+D/test1.bin
+D/test2.bin

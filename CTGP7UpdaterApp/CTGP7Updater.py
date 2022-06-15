@@ -100,7 +100,7 @@ class CTGP7Updater:
                 self._downloadFIle()
                 return None
             elif self.fileMethod == "D": # Delete
-                CTGP7Updater.fileDelete(self.url, self.filePath)
+                CTGP7Updater.fileDelete(self.filePath)
                 return None
             elif self.fileMethod == "F": # (Rename) From
                 return self.filePath

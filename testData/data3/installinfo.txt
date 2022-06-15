@@ -1,0 +1,5 @@
+S/1000000
+M/testfile1.bin
+D/testfile2.bin
+F/testfile3.bin
+T/testfile4.bin
