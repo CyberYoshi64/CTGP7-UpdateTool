@@ -1,4 +1,3 @@
-import imp
 import os
 from urllib.request import urlopen
 import shutil
@@ -18,7 +17,7 @@ class CTGP7Updater:
 
     class FileListEntry:
 
-        def __init__(self, ver, method, path, url) -> None:
+        def __init__(self, ver, method, path: str, url: str) -> None:
             self.filePath = path # File path
             self.forVersion = ver # Unused, for compatibility with launcher
             self.fileMethod = method
@@ -26,6 +25,19 @@ class CTGP7Updater:
             self.fileProgressCallback = None
             self.fileOnlyName = self.filePath[self.filePath.rfind(os.path.sep) + 1:]
             self.url = url
+
+        def __eq__(self, __o: object) -> bool:
+            return isinstance(__o, CTGP7Updater.FileListEntry) and \
+                self.filePath == __o.filePath and \
+                self.url == __o.url and \
+                self.fileMethod == __o.fileMethod and \
+                self.forVersion == __o.forVersion
+            
+        def __str__(self) -> str:
+            return "ver: \"{}\" method: \"{}\" path: \"{}\" url: \"{}\"".format(self.forVersion, self.fileMethod, self.filePath, self.url)
+        
+        def __repr__(self) -> str:
+            return self.__str__()
         
         def setCallbacks(self, isStopped, progress):
             self.isStoppedCallback = isStopped
@@ -140,6 +152,12 @@ class CTGP7Updater:
         g=fol[0:fol.rfind(os.path.sep)]
         os.makedirs(g, exist_ok=True)
     
+    def _buildFilePath(self, path: str):
+        return os.path.join(os.path.join(self.basePath, "CTGP-7"), path.replace("/", os.path.sep)[1:])
+    
+    def _buildFileURL(self, path: str):
+        return self.baseURL + CTGP7Updater._FILES_LOCATION + path
+
     def _parseAndSortDlList(self, dll:list):
         allFilePaths=[]; allFileModes=[]; ret=[]; oldf=""
         self.downloadCount = 0
@@ -163,9 +181,7 @@ class CTGP7Updater:
         
         for i in range(len(allFilePaths)):
             if allFileModes[i]=="M": self.downloadCount+=1
-            filePath = os.path.join(os.path.join(self.basePath, "CTGP-7"), allFilePaths[i].replace("/", os.path.sep)[1:])
-            url = self.baseURL + CTGP7Updater._FILES_LOCATION + allFilePaths[i]
-            ret.append(CTGP7Updater.FileListEntry(self.currentUpdateIndex, allFileModes[i], filePath, url))
+            ret.append(CTGP7Updater.FileListEntry(self.currentUpdateIndex, allFileModes[i], self._buildFilePath(allFilePaths[i]), self._buildFileURL(allFilePaths[i])))
 
         return ret
 
@@ -202,6 +218,10 @@ class CTGP7Updater:
         if (self.logFunction):
             self.logFunction({"p":(curr, tot)})
 
+    @staticmethod
+    def _isValidNintendo3DSSDCard(path:str):
+        return os.path.exists(os.path.join(path, "Nintendo 3DS"))
+
     def setBaseDirectory(self, path: str):
         if not (os.path.exists(path)):
             raise Exception("Installation path invalid.")
@@ -222,7 +242,7 @@ class CTGP7Updater:
                 fileModeList = []
                 for file in fileList:
                     if file=="": continue
-                    fileModeList.append((file[0],file[1:]))
+                    fileModeList.append((file[0],file[1:].strip()))
                 self.fileList = self._parseAndSortDlList(fileModeList)
 
             except Exception as e:
@@ -241,7 +261,7 @@ class CTGP7Updater:
             candidates = []
             for m in mount_points:
                 try:
-                    if (os.path.exists(os.path.join(m.mountpoint, "Nintendo 3DS"))):
+                    if (CTGP7Updater._isValidNintendo3DSSDCard(m.mountpoint)):
                         candidates.append(m.mountpoint)
                 except:
                     pass
