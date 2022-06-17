@@ -144,3 +144,43 @@ class TestCTGP7Updater:
                 assert os.path.exists(e.filePath)
                 with open(e.filePath, "rb") as f:
                     assert f.read() == lastRandomVal
+
+    @pytest.mark.parametrize("updater", ["data8"], indirect=["updater"])
+    def test_doinstall(self, updater: CTGP7Updater):
+        updater.getLatestVersion()
+        updater.loadUpdateInfo()
+        updater.startUpdate()
+
+        for e in updater.fileList:
+            if "tooInstall" in e.filePath:
+                assert not os.path.exists(e.filePath)
+            else:
+                assert filecmp.cmp(pathlib.Path("testData/data8/data/" + e.fileOnlyName).resolve(), e.filePath)
+
+        mainfolder = os.path.join(updater.basePath, "CTGP-7")
+        hbrwfolder = os.path.join(updater.basePath, "3ds")
+
+        ciaFile = os.path.join(mainfolder, "cia", "CTGP-7.cia")
+        hbrwFile = os.path.join(mainfolder, "cia", "CTGP-7.3dsx")
+        hbrwFileFinal = os.path.join(hbrwfolder, "CTGP-7.3dsx")
+        versionFile = os.path.join(mainfolder, *CTGP7Updater._VERSION_FILE_PATH)
+
+        assert filecmp.cmp(pathlib.Path("testData/data8/data/cia/tooInstall.3dsx").resolve(), hbrwFile)
+        assert filecmp.cmp(pathlib.Path("testData/data8/data/cia/tooInstall.3dsx").resolve(), hbrwFileFinal)
+        assert filecmp.cmp(pathlib.Path("testData/data8/data/cia/tooInstall.cia").resolve(), ciaFile)
+
+        assert filecmp.cmp(pathlib.Path("testData/data8/latestver").resolve(), versionFile)
+
+    @pytest.mark.parametrize("updater", ["data1"], indirect=["updater"])
+    def test_cleaninstall(self, updater: CTGP7Updater):
+        mainfolder = os.path.join(updater.basePath, "CTGP-7")
+        testfile1 = os.path.join(mainfolder, "test1.bin")
+        testfile2 = os.path.join(updater.basePath, "test2.bin")
+        updater.mkFoldersForFile(testfile1)
+        with open(testfile1, "w") as f: f.write("hello world")
+        with open(testfile2, "w") as f: f.write("hello world")
+
+        updater.cleanInstallFolder()
+
+        assert (not os.path.exists(testfile1)) and (not os.path.exists(mainfolder))
+        assert os.path.exists(testfile2)

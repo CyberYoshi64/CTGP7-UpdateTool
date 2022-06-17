@@ -12,7 +12,7 @@ class CTGP7Updater:
     _FILES_LOCATION = "data"
     _LATEST_VER_LOCATION = "latestver"
     _DL_ATTEMPT_TOTALCNT = 30
-    _VERSION_FILE_PATH = "config/version.bin"
+    _VERSION_FILE_PATH = ["config", "version.bin"]
     _SLACK_FREE_SPACE = 20000000
 
     class FileListEntry:
@@ -312,7 +312,9 @@ class CTGP7Updater:
             raise Exception("Failed to finish cleanup: {}".format(e))
 
         try:
-            with open(os.path.join(mainfolder, CTGP7Updater._VERSION_FILE_PATH), "wb") as vf:
+            configPath = os.path.join(mainfolder, *CTGP7Updater._VERSION_FILE_PATH)
+            self.mkFoldersForFile(configPath)
+            with open(configPath, "wb") as vf:
                 vf.write(self.latestVersion.encode("ascii"))
         except Exception as e:
             raise Exception("Failed to write version info: {}".format(e))
