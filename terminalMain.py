@@ -50,7 +50,7 @@ Continue anyway?""".format(sdPath)):
     savefsPath = os.path.join(sdPath, "CTGP-7", "savefs")
     savefsCopy = os.path.join(sdPath, "CTGP-7savebak")
 
-    if installPathFlag & 3:
+    if not arg.install and (installPathFlag & 3):
         if not ConsoleConfirmed("""\
 There was no valid CTGP-7 installation detected.
 If there is one, it appears to be corrupted.
@@ -60,6 +60,10 @@ Do you wish to continue anyway?"""):
             raise Exception("User refused to reinstall the modpack.")
         makeNewInstall = True
     
+    if arg.install:
+        print("!! WARNING: -i/--install specified, forcing a re-install.")
+        makeNewInstall = True
+
     # Console-only; GUI will warn immediately and not take a hold
     # of this value
     if makeNewInstall: installPathFlag &= 3
