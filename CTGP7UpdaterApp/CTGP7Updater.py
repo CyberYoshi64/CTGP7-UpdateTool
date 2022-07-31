@@ -9,21 +9,26 @@ class CTGP7Updater:
 
     _BASE_URL_DYN_LINK = "https://ctgp7.page.link/baseCDNURL"
     _INSTALLER_FILE_DIFF = "installinfo.txt"
+    _UPDATER_CHGLOG_FILE = "changeloglist"
+    _UPDATER_FILE_URL = "fileListPrefix.txt"
     _FILES_LOCATION = "data"
     _LATEST_VER_LOCATION = "latestver"
     _DL_ATTEMPT_TOTALCNT = 30
     _VERSION_FILE_PATH = ["config", "version.bin"]
+    _PENDINGUPDATE_PATH = ["config", "pendingUpdate.bin"]
     _SLACK_FREE_SPACE = 20000000
 
     class FileListEntry:
 
-        def __init__(self, ver, method, path: str, url: str) -> None:
+        def __init__(self, ver: int, method, path: str, url: str) -> None:
             self.filePath = path # File path
             self.forVersion = ver # Unused, for compatibility with launcher
             self.fileMethod = method
+            self.havePerformed = False
             self.isStoppedCallback = None
             self.fileProgressCallback = None
             self.fileOnlyName = self.filePath[self.filePath.rfind(os.path.sep) + 1:]
+            self.remoteName = self.filePath[self.filePath.rfind(os.path.sep+"CTGP-7"+os.path.sep) + 7:].replace("\\","/")
             self.url = url
 
         def __eq__(self, __o: object) -> bool:
@@ -45,24 +50,12 @@ class CTGP7Updater:
 
         # Export struct for pendingUpdate.bin
         def exportToPend(self) -> bytes:
-            import struct
             return struct.pack("<BI", \
                 ord(self.fileMethod),\
                 self.forVersion) + \
-                self.filePath.encode("utf8") + b'\0' # null-byte as string can be any length
+                self.remoteName.encode("utf8") + b'\0' # null-byte as string can be any length
         
-        # Import from pendingUpdate.bin
-        def importFromPend(self,fdb,off) -> int:
-            self.fileMethod = chr(fdb[off])
-            self.forVersion, = struct.unpack("<I",fdb[off+1:off+5])
-            self.filePath = b''
-            for off in range(off+5,len(fdb)):
-                if fdb[off]: self.filePath += int.to_bytes(fdb[off],1,"little")
-                else: break
-            self.filePath = self.filePath.decode("utf8")
-            return off+1
-
-        def _downloadFIle(self): 
+        def _downloadFile(self): 
             countRetry = 0
             userCancel = False
             while (True):
@@ -89,6 +82,7 @@ class CTGP7Updater:
                             if (self.fileProgressCallback is not None):
                                 self.fileProgressCallback(fileDownCurr, fileDownSize, self.fileOnlyName)
                         break
+                        
                 except Exception as e:
                     if (countRetry >= CTGP7Updater._DL_ATTEMPT_TOTALCNT or userCancel):
                         raise Exception("Failed to download file \"{}\": {}".format(self.fileOnlyName, e))
@@ -97,7 +91,7 @@ class CTGP7Updater:
 
         def perform(self, lastPerformValue:str):
             if self.fileMethod == "M": # Modify
-                self._downloadFIle()
+                self._downloadFile()
                 return None
             elif self.fileMethod == "D": # Delete
                 CTGP7Updater.fileDelete(self.filePath)
@@ -202,7 +196,7 @@ class CTGP7Updater:
         return self.isStopped
 
     def _logFileProgressCallback(self, fileDownCurr, fileDownSize, fileOnlyName):
-        self._log("Downloading file {} of {}: \"{}\" ({:.2f}%)".format(self.currDownloadCount + 1, self.downloadCount, fileOnlyName, (fileDownCurr / fileDownSize) * 100))
+        self._log("Downloading file {} of {}: \"{}\" ({:.2f}%){}".format(self.currDownloadCount, self.downloadCount, fileOnlyName, (fileDownCurr / fileDownSize) * 100, "\r"*(fileDownCurr<fileDownSize)))
     
     def setBaseURL(self, url):
         self.baseURL = url
@@ -222,6 +216,20 @@ class CTGP7Updater:
     def _isValidNintendo3DSSDCard(path:str):
         return os.path.exists(os.path.join(path, "Nintendo 3DS"))
 
+    @staticmethod
+    def checkForInstallOfPath(path:str):
+        bitMask:int = \
+        os.path.exists(os.path.join(path, "3ds"))<<0|\
+        os.path.exists(os.path.join(path, "CTGP-7"))<<0|\
+        os.path.exists(os.path.join(path, "CTGP-7", *CTGP7Updater._VERSION_FILE_PATH))<<1|\
+        os.path.exists(os.path.join(path, "CTGP-7", *CTGP7Updater._PENDINGUPDATE_PATH))<<2
+        
+        if bitMask & 2:
+            vfSz = os.stat(os.path.join(path, "CTGP-7", *CTGP7Updater._VERSION_FILE_PATH)).st_size
+            bitMask ^= (vfSz<3 or vfSz>8)<<1
+        
+        return bitMask ^ 7
+
     def setBaseDirectory(self, path: str):
         if not (os.path.exists(path)):
             raise Exception("Installation path invalid.")
@@ -234,12 +242,22 @@ class CTGP7Updater:
         except Exception as e:
             raise Exception("Failed to get latest version: {}".format(e))
 
+    @staticmethod
+    def _readUntilNulByte(fb) -> bytes:
+        if not hasattr(fb,"read"): return b""
+        out:bytes = b''
+        while True:
+            char = fb.read(1)
+            if char == b'\0' or char == b'': break
+            out += char
+        return out
+
     def loadUpdateInfo(self):
+        fileModeList = []
         if (self.isInstaller):
             self._log("Downloading file list...")
             try:
                 fileList = self._downloadString(self.baseURL + CTGP7Updater._INSTALLER_FILE_DIFF).split("\n")
-                fileModeList = []
                 for file in fileList:
                     if file=="": continue
                     fileModeList.append((file[0],file[1:].strip()))
@@ -247,6 +265,52 @@ class CTGP7Updater:
 
             except Exception as e:
                 raise Exception("Failed to get list of files: {}".format(e))
+        else:
+            # Update
+            self._log("Preparing update...")
+            
+            pendUpdName = os.path.join(self.basePath, "CTGP-7", *self._PENDINGUPDATE_PATH)
+            if os.path.exists(pendUpdName):
+                entriesLeft:int = 0; pendingVersion:str = ""
+                with open(pendUpdName,"rb") as puf:
+                    entriesLeft = int.from_bytes(puf.read(4), "little")
+                    pendingVersion = CTGP7Updater._readUntilNulByte(puf)
+                    for i in range(entriesLeft):
+                        fileMethod = str(puf.read(1),"ascii")
+                        _redundant_fileVersion = int.from_bytes(puf.read(4),"little")
+                        fileName = CTGP7Updater._readUntilNulByte(puf).decode("utf-8")
+                        fileModeList.append((fileMethod, fileName))
+                self.fileList = self._parseAndSortDlList(fileModeList)
+            else:
+                try:
+                    configPath = os.path.join(self.basePath, "CTGP-7", *CTGP7Updater._VERSION_FILE_PATH)
+                    with open(configPath, "rb") as vf:
+                        localVersion = vf.read().decode("utf-8")
+                except Exception as e:
+                    raise Exception("Could not read the version file: {}".format(e))
+
+                fileListURL = self._downloadString(self.baseURL + CTGP7Updater._UPDATER_FILE_URL).replace("\n", "").replace("\r", "")
+                changelogData = self._downloadString(self.baseURL + CTGP7Updater._UPDATER_CHGLOG_FILE).split(";")
+                for index in range(len(changelogData)):
+                    changelogData[index] = changelogData[index].split(":")[0]
+            
+                try:
+                    chglogIdx = changelogData.index(localVersion)
+                except:
+                    raise Exception("Current version not known. The version file might be corrupted or has been modified.")
+                if chglogIdx == len(changelogData)-1:
+                    raise Exception("There are no updates available; will not proceed further.")
+
+                for index in range(chglogIdx, len(changelogData)):
+                    try:
+                        fileList = self._downloadString(fileListURL % changelogData[index]).split("\n")
+                        for file in fileList:
+                            if file=="": continue
+                            fileModeList.append((file[0],file[1:].strip()))
+                        self.fileList = self._parseAndSortDlList(fileModeList)
+
+                    except Exception as e:
+                        raise Exception("Failed to get list of files: {}".format(e))
     
     def verifySpaceAvailable(self):
         available_space = psutil.disk_usage(self.basePath).free
@@ -271,6 +335,21 @@ class CTGP7Updater:
             pass
         return None
 
+    def makePendingUpdate(self):
+        header:bytes = self.latestVersion.encode("ascii") + b'\0'
+        flist:bytes = b''; pendingCount:int = 0
+        for entry in self.fileList:
+            if not entry.havePerformed:
+                flist += entry.exportToPend()
+                pendingCount += 1
+        header = int.to_bytes(pendingCount, 4, "little") + header
+
+        fileName = os.path.join(self.basePath, "CTGP-7", *self._PENDINGUPDATE_PATH)
+        self.mkFoldersForFile(fileName)
+        with open(fileName,"wb") as puf:
+            puf.write(header + flist)
+
+
     def startUpdate(self):
         mainfolder = os.path.join(self.basePath, "CTGP-7")
         hbrwfolder = os.path.join(self.basePath, "3ds")
@@ -280,14 +359,26 @@ class CTGP7Updater:
         except Exception as e:
             raise Exception("Failed to create CTGP-7 directory: {}".format(e))
 
+        CTGP7Updater.fileDelete(os.path.join(self.basePath, "CTGP-7", *self._PENDINGUPDATE_PATH))
+
         prevReturnValue = None
         self.currDownloadCount = 0
         for entry in self.fileList:
             entry.setCallbacks(self._isStoppedCallback, self._logFileProgressCallback)
             if (entry.fileMethod == "M"):
                 self.currDownloadCount += 1
+                self._prog(self.currDownloadCount, self.downloadCount)
 
-            prevReturnValue = entry.perform(prevReturnValue)
+            try:
+                prevReturnValue = entry.perform(prevReturnValue)
+                entry.havePerformed = True
+            except (Exception, KeyboardInterrupt) as e:
+                self._log("")
+                if not self.isInstaller:
+                    self._log("Marking update as pending...")
+                    self.makePendingUpdate()
+                raise Exception(e)
+
 
         ciaFile = os.path.join(mainfolder, "cia", "CTGP-7.cia")
         tooInstallCiaFile = os.path.join(mainfolder, "cia", "tooInstall.cia")
@@ -322,6 +413,7 @@ class CTGP7Updater:
         self._log("Installation complete!")
 
     def cleanInstallFolder(self):
+        if not self.isInstaller: return
         mainfolder = os.path.join(self.basePath, "CTGP-7")
         if (os.path.exists(mainfolder)):
             self._log("Cleaning up previous CTGP-7 installation...")
