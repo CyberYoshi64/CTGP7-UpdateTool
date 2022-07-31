@@ -55,7 +55,12 @@ Proceeding will wipe the installation and make a new one.
 
 Do you wish to continue anyway?"""):
             raise Exception("User refused to reinstall the modpack.")
-        makeNewInstall = True; installPathFlag &= 3
+        makeNewInstall = True
+    
+    # Console-only; GUI will warn immediately and not take a hold
+    # of this value
+    if makeNewInstall: installPathFlag &= 3
+    
     updater = CTGP7Updater(makeNewInstall)
     updater.fetchDefaultCDNURL()
     updater.setLogFunction(logger)
