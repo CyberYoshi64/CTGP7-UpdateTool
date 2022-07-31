@@ -312,8 +312,10 @@ class CTGP7Updater:
                 if chglogIdx == len(changelogData)-1:
                     raise Exception("There are no updates available; will not proceed further.")
 
+                progTotal = len(changelogData) - chglogIdx
                 for index in range(chglogIdx, len(changelogData)):
                     try:
+                        self._prog(index - chglogIdx, progTotal)
                         fileList = self._downloadString(fileListURL % changelogData[index]).split("\n")
                         for file in fileList:
                             if file=="": continue
@@ -378,20 +380,21 @@ class CTGP7Updater:
         for entry in self.fileList:
             entry.setCallbacks(self._isStoppedCallback, self._logFileProgressCallback)
             if (entry.fileMethod == "M"):
-                self.currDownloadCount += 1
                 self._prog(self.currDownloadCount, self.downloadCount)
+                self.currDownloadCount += 1
 
             try:
                 prevReturnValue = entry.perform(prevReturnValue)
                 entry.havePerformed = True
             except (Exception, KeyboardInterrupt) as e:
-                self._log("")
+                self._log("Aborting installation...")
                 if not self.isInstaller:
                     self._log("Marking update as pending...")
                     self.makePendingUpdate()
                 raise Exception(e)
 
-
+        self._prog(self.currDownloadCount, self.downloadCount)
+        
         ciaFile = os.path.join(mainfolder, "cia", "CTGP-7.cia")
         tooInstallCiaFile = os.path.join(mainfolder, "cia", "tooInstall.cia")
         hbrwFile = os.path.join(mainfolder, "cia", "CTGP-7.3dsx")
