@@ -24,12 +24,12 @@ class CTGP7Updater:
             self.filePath = path # File path
             self.forVersion = ver # Unused, for compatibility with launcher
             self.fileMethod = method
-            self.havePerformed = False
+            self.havePerformed = False # for CTGP7Updater.makePendingUpdate()
             self.isStoppedCallback = None
             self.fileProgressCallback = None
-            self.fileOnlyName = self.filePath[self.filePath.rfind(os.path.sep) + 1:]
-            self.remoteName = self.filePath[self.filePath.rfind(os.path.sep+"CTGP-7"+os.path.sep) + 7:].replace("\\","/")
             self.url = url
+            self.fileOnlyName = self.filePath[self.filePath.rfind(os.path.sep) + 1:]
+            self.remoteName = self.filePath[self.filePath.rfind(os.path.sep+"CTGP-7"+os.path.sep) + 7:].replace("\\","/") # for pendingUpdate
 
         def __eq__(self, __o: object) -> bool:
             return isinstance(__o, CTGP7Updater.FileListEntry) and \
@@ -216,6 +216,11 @@ class CTGP7Updater:
     def _isValidNintendo3DSSDCard(path:str):
         return os.path.exists(os.path.join(path, "Nintendo 3DS"))
 
+    # Return bitmask to prepare and determine, if an
+    # update is viable or a reinstall is needed.
+    # bit0 (1) - Folder 3ds and CTGP-7 don't exist together
+    # bit1 (2) - Config missing or invalid
+    # bit2 (4) - A pending update is available
     @staticmethod
     def checkForInstallOfPath(path:str):
         bitMask:int = \
@@ -242,6 +247,8 @@ class CTGP7Updater:
         except Exception as e:
             raise Exception("Failed to get latest version: {}".format(e))
 
+    # Using this to simplify reading from pendingUpdate.bin
+    # fb is a BufferedReader
     @staticmethod
     def _readUntilNulByte(fb) -> bytes:
         if not hasattr(fb,"read"): return b""
@@ -254,6 +261,8 @@ class CTGP7Updater:
 
     def loadUpdateInfo(self):
         fileModeList = []
+        
+        # Installation (read full list)
         if (self.isInstaller):
             self._log("Downloading file list...")
             try:
@@ -268,8 +277,9 @@ class CTGP7Updater:
         else:
             # Update
             self._log("Preparing update...")
-            
             pendUpdName = os.path.join(self.basePath, "CTGP-7", *self._PENDINGUPDATE_PATH)
+            
+            # If a pending update present, use it
             if os.path.exists(pendUpdName):
                 entriesLeft:int = 0; pendingVersion:str = ""
                 with open(pendUpdName,"rb") as puf:
@@ -282,6 +292,7 @@ class CTGP7Updater:
                         fileModeList.append((fileMethod, fileName))
                 self.fileList = self._parseAndSortDlList(fileModeList)
             else:
+                # Read current version and load file lists up to latest version
                 try:
                     configPath = os.path.join(self.basePath, "CTGP-7", *CTGP7Updater._VERSION_FILE_PATH)
                     with open(configPath, "rb") as vf:
@@ -349,7 +360,6 @@ class CTGP7Updater:
         with open(fileName,"wb") as puf:
             puf.write(header + flist)
 
-
     def startUpdate(self):
         mainfolder = os.path.join(self.basePath, "CTGP-7")
         hbrwfolder = os.path.join(self.basePath, "3ds")
@@ -359,6 +369,8 @@ class CTGP7Updater:
         except Exception as e:
             raise Exception("Failed to create CTGP-7 directory: {}".format(e))
 
+        # Replicate launcher behaviour; delete pendingupdate
+        # but reading it before in loadUpdateInfo()
         CTGP7Updater.fileDelete(os.path.join(self.basePath, "CTGP-7", *self._PENDINGUPDATE_PATH))
 
         prevReturnValue = None
@@ -413,6 +425,7 @@ class CTGP7Updater:
         self._log("Installation complete!")
 
     def cleanInstallFolder(self):
+        # Only wipe folder, if not updating
         if not self.isInstaller: return
         mainfolder = os.path.join(self.basePath, "CTGP-7")
         if (os.path.exists(mainfolder)):
