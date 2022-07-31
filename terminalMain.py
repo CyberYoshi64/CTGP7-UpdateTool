@@ -60,7 +60,6 @@ Do you wish to continue anyway?"""):
     # Console-only; GUI will warn immediately and not take a hold
     # of this value
     if makeNewInstall: installPathFlag &= 3
-    
     updater = CTGP7Updater(makeNewInstall)
     updater.fetchDefaultCDNURL()
     updater.setLogFunction(logger)
@@ -72,16 +71,16 @@ Do you wish to continue anyway?"""):
     # This question is only for console; for GUI, take the value
     # of installPathFlag and check to verfiy entered path.
     # Console is one-shot.
-    if installPathFlag & 4:
-        if not ConsoleConfirmed("""\
-Proceeding to {}ing to version '{}'.
-Do you want to proceed?""".format(_INSTALLER_VERB[updater.isInstaller], updater.latestVersion)):
-            raise Exception("User cancelled the installation.")
-    else:
+    if (installPathFlag & 4):
         if not ConsoleConfirmed("""\
 A pending update to version '{}' was detected.
 You must finish this update before starting a new one.
 Do you want to proceed?""".format(updater.latestVersion)):
+            raise Exception("User cancelled the installation.")
+    else:
+        if not ConsoleConfirmed("""\
+Proceeding to {}ing to version '{}'.
+Do you want to proceed?""".format(_INSTALLER_VERB[updater.isInstaller], updater.latestVersion)):
             raise Exception("User cancelled the installation.")
 
     updater.cleanInstallFolder()

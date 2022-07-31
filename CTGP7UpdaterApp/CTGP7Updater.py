@@ -219,16 +219,16 @@ class CTGP7Updater:
     @staticmethod
     def checkForInstallOfPath(path:str):
         bitMask:int = \
-        os.path.exists(os.path.join(path, "3ds"))<<0|\
-        os.path.exists(os.path.join(path, "CTGP-7"))<<0|\
-        os.path.exists(os.path.join(path, "CTGP-7", *CTGP7Updater._VERSION_FILE_PATH))<<1|\
-        os.path.exists(os.path.join(path, "CTGP-7", *CTGP7Updater._PENDINGUPDATE_PATH))<<2
+        (not os.path.exists(os.path.join(path, "3ds")))<<0|\
+        (not os.path.exists(os.path.join(path, "CTGP-7")))<<0|\
+        (not os.path.exists(os.path.join(path, "CTGP-7", *CTGP7Updater._VERSION_FILE_PATH)))<<1|\
+        (os.path.exists(os.path.join(path, "CTGP-7", *CTGP7Updater._PENDINGUPDATE_PATH)))<<2
         
-        if bitMask & 2:
+        if not (bitMask & 2):
             vfSz = os.stat(os.path.join(path, "CTGP-7", *CTGP7Updater._VERSION_FILE_PATH)).st_size
-            bitMask ^= (vfSz<3 or vfSz>8)<<1
+            bitMask |= (vfSz<3 or vfSz>8)<<1
         
-        return bitMask ^ 7
+        return bitMask
 
     def setBaseDirectory(self, path: str):
         if not (os.path.exists(path)):
