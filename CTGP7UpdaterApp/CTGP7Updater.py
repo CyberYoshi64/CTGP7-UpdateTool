@@ -21,15 +21,15 @@ class CTGP7Updater:
     class FileListEntry:
 
         def __init__(self, ver: int, method, path: str, url: str) -> None:
-            self.filePath = path # File path
-            self.forVersion = ver # Unused, for compatibility with launcher
+            self.filePath = path
+            self.forVersion = ver # Unused, but specified anyway
             self.fileMethod = method
-            self.havePerformed = False # for CTGP7Updater.makePendingUpdate()
+            self.havePerformed = False
             self.isStoppedCallback = None
             self.fileProgressCallback = None
             self.url = url
             self.fileOnlyName = self.filePath[self.filePath.rfind(os.path.sep) + 1:]
-            self.remoteName = self.filePath[self.filePath.rfind(os.path.sep+"CTGP-7"+os.path.sep) + 7:].replace("\\","/") # for pendingUpdate
+            self.remoteName = self.filePath[self.filePath.rfind(os.path.sep+"CTGP-7"+os.path.sep) + 7:].replace("\\","/")
 
         def __eq__(self, __o: object) -> bool:
             return isinstance(__o, CTGP7Updater.FileListEntry) and \
@@ -53,7 +53,7 @@ class CTGP7Updater:
             return struct.pack("<BI", \
                 ord(self.fileMethod),\
                 self.forVersion) + \
-                self.remoteName.encode("utf8") + b'\0' # null-byte as string can be any length
+                self.remoteName.encode("utf8") + b'\0'
         
         def _downloadFile(self): 
             countRetry = 0
@@ -304,7 +304,11 @@ class CTGP7Updater:
                 changelogData = self._downloadString(self.baseURL + CTGP7Updater._UPDATER_CHGLOG_FILE).split(";")
                 for index in range(len(changelogData)):
                     changelogData[index] = changelogData[index].split(":")[0]
-            
+
+                while True:
+                    try:    changelogData.remove("")
+                    except: break
+
                 try:
                     chglogIdx = changelogData.index(localVersion)
                 except:
@@ -313,8 +317,9 @@ class CTGP7Updater:
                     raise Exception("There are no updates available; will not proceed further.")
 
                 progTotal = len(changelogData) - chglogIdx
-                for index in range(chglogIdx, len(changelogData)):
+                for index in range(chglogIdx + 1, len(changelogData)):
                     try:
+                        self._log("Preparing update (v{})...\r".format(changelogData[index]))
                         self._prog(index - chglogIdx, progTotal)
                         fileList = self._downloadString(fileListURL % changelogData[index]).split("\n")
                         for file in fileList:
@@ -371,10 +376,7 @@ class CTGP7Updater:
         except Exception as e:
             raise Exception("Failed to create CTGP-7 directory: {}".format(e))
 
-        # Replicate launcher behaviour; delete pendingupdate
-        # but reading it before in loadUpdateInfo()
         CTGP7Updater.fileDelete(os.path.join(self.basePath, "CTGP-7", *self._PENDINGUPDATE_PATH))
-
         prevReturnValue = None
         self.currDownloadCount = 0
         for entry in self.fileList:

@@ -2,6 +2,12 @@
 from CTGP7UpdaterApp.CTGP7Updater import CTGP7Updater
 import os, shutil, argparse
 
+argprs = argparse.ArgumentParser()
+argprs.add_argument("-i", "--install", action="store_true", help="Force a re-install, even is updating is viable.")
+argprs.add_argument("-p", dest="path", help="Specify a path to a 3DS SD Card instead of trying to auto-detect one.")
+argprs.add_argument("-y", "--yes", action="store_true", help="Always answer 'yes'. Use this, only if you know what you're up for.")
+arg = argprs.parse_args()
+
 def logger(data:dict):
     if "m" in data:
         if len(data["m"])<2:
@@ -12,18 +18,17 @@ def logger(data:dict):
         pass # Ignore it, no progress bar needed for console
 
 def ConsoleConfirmed(message:str):
+    global arg
     print(message)
+    if arg.yes: return True
     try:    return input("[y/N]").upper()=="Y"
     except: return False
 
-argprs = argparse.ArgumentParser()
-argprs.add_argument("-i", "--install", action="store_true", help="Force a re-install, even is updating is viable.")
-argprs.add_argument("-p", dest="path", help="Specify a path to a 3DS SD Card instead of trying to auto-detect one.")
-arg = argprs.parse_args()
+
 try:
     _INSTALLER_VERB = {True: "install", False: "update"}
-    makeNewInstall = False
-    madeSaveBackup = False
+    makeNewInstall = False; madeSaveBackup = False
+    didProcessSucceed = False
     
     print("CTGP-7 Update Tool (Terminal) v1.2")
     if arg.path != None:
@@ -87,7 +92,7 @@ Do you want to proceed?""".format(updater.latestVersion)):
             raise Exception("User cancelled the installation.")
     else:
         if not ConsoleConfirmed("""\
-Proceeding to {}ing to version '{}'.
+Proceeding to {} to version '{}'.
 Do you want to proceed?""".format(_INSTALLER_VERB[updater.isInstaller], updater.latestVersion)):
             raise Exception("User cancelled the installation.")
 
@@ -124,8 +129,9 @@ To:
     print("""
 The installation of version {} was successful.
 
-Make sure to install the following CIA using FBI:
+Make sure to install the following file using FBI on your 3DS:
   SD > CTGP-7 > cia > CTGP-7.cia""".format(updater.latestVersion))
+    didProcessSucceed = True
 except Exception as e:
     print("""
 An error has occured:
@@ -134,5 +140,8 @@ An error has occured:
 Should issues persist, ask for help in the CTGP-7
 Discord Server: https://discord.com/invite/0uTPwYv3SPQww54l""".format(e))
 
-try:    input("Press Return to exit the application.")
-except: pass
+if not arg.yes:
+    try:    input("Press Return to exit the application.")
+    except: pass
+
+exit(not didProcessSucceed)
