@@ -22,10 +22,11 @@ class WorkerSignals(QObject):
 
 class CTGP7InstallerWorker(QRunnable):
 
-    def __init__(self, basedir):
+    def __init__(self, basedir, isInstall):
         super(CTGP7InstallerWorker, self).__init__()
         self.signals = WorkerSignals()
         self.basedir = basedir
+        self.isInstall = isInstall
         self.signals.stop.connect(self.onStop)
         self.updater = None
 
@@ -40,7 +41,7 @@ class CTGP7InstallerWorker(QRunnable):
     def run(self):
         try:
             self.logData({"m": "Starting CTGP-7 Installation..."})
-            self.updater = CTGP7Updater(True)
+            self.updater = CTGP7Updater(self.isInstall)
             self.updater.fetchDefaultCDNURL()
             self.updater.setLogFunction(self.logData)
             self.updater.setBaseDirectory(self.basedir)
@@ -62,10 +63,12 @@ class Window(QMainWindow, Ui_MainWindow):
         self.progressBar.setEnabled(False)
         self.progressInfoLabel.setText("")
         self.setStartButtonState(0)
+        self.isInstaller = True
+        self.hasPending = False
+        self.didSaveBackup = False
         self.scanForNintendo3DSSD()
         self.installerworker = None
         self.threadpool = QThreadPool()
-        self.didSaveBackup = False
     
     def reportProgress(self, data: dict):
         if "m" in data:
@@ -77,7 +80,7 @@ class Window(QMainWindow, Ui_MainWindow):
     def installOnError(self, err:str):
         msg = QMessageBox(parent=self)
         msg.setIcon(QMessageBox.Critical)
-        msg.setText("An error has occurred during the CTGP-7 Installation<br>If this error keeps happening, ask for help in the <a href='https://discord.com/invite/0uTPwYv3SPQww54l'>CTGP-7 Discord Server</a>.")
+        msg.setText("An error has occurred during the CTGP-7 installation.<br>If this error keeps happening, ask for help in the <a href='https://discord.com/invite/0uTPwYv3SPQww54l'>CTGP-7 Discord Server</a>.")
         msg.setDetailedText(str(err))
         msg.setWindowTitle("Error")
         for b in msg.buttons():
@@ -123,48 +126,70 @@ class Window(QMainWindow, Ui_MainWindow):
 
 
     def startStopButtonPress(self):
-        if (self.startButtonState == 1):
+        if (self.startButtonState > 0 and self.startButtonState < 4):
+            if self.startButtonState == 3 and (QMessageBox.question(self, "Broken CTGP-7 installation", "This installation has been flagged for reinstallation, as it cannot be updated. Continuing will wipe this installation and create a new one.<br><br>Do you want to continue anyway?<br>(Your save data will be backed up, if possible.)", QMessageBox.Yes | QMessageBox.No) == QMessageBox.No): return
+            if not self.isInstaller and self.hasPending and (QMessageBox.question(self, "Pending update", "A pending update was detected. You must finish it first, before updating again. Do you want to continue this update?", QMessageBox.Yes | QMessageBox.No) == QMessageBox.No): return
+            if self.isInstaller and not self.doSaveBackup(): return
             self.miscInfoLabel.setText("")
-            if not self.doSaveBackup(): return
-            self.installerworker = CTGP7InstallerWorker(self.sdRootText.text())
+            self.installerworker = CTGP7InstallerWorker(self.sdRootText.text(), self.isInstaller)
             self.installerworker.signals.progress.connect(self.reportProgress)
             self.installerworker.signals.success.connect(self.installOnSuccess)
             self.installerworker.signals.error.connect(self.installOnError)
-            self.setStartButtonState(2)
+            self.setStartButtonState(4)
             self.sdBrowseButton.setEnabled(False)
             self.helpButton.setEnabled(False)
             self.sdRootText.setEnabled(False)
             self.threadpool.start(self.installerworker)
-        elif (self.startButtonState == 2):
+        elif (self.startButtonState == 4):
             if (self.installerworker):
                 self.installerworker.signals.stop.emit()
             self.setStartButtonState(0)
 
     def setStartButtonState(self, state):
         self.startButtonState = state
+        self.startStopButton.setEnabled(state != 0)
         if (state == 0):
             self.startStopButton.setText("")
-            self.startStopButton.setEnabled(False)
             self.startStopButton.clearFocus()
         elif (state == 1):
             self.startStopButton.setText("INSTALL")
-            self.startStopButton.setEnabled(True)
+            self.isInstaller = True
         elif (state == 2):
+            self.startStopButton.setText("UPDATE")
+            self.isInstaller = False
+        elif (state == 3):
+            self.startStopButton.setText("REINSTALL")
+            self.isInstaller = True
+        elif (state == 4):
             self.startStopButton.setText("CANCEL")
-            self.startStopButton.setEnabled(True)
 
     def applySDFolder(self, folder: str):
-        if (folder == ""):
+        if (folder == "" or folder[-1]==" "):
             self.miscInfoLabel.setText("")
+            self.setStartButtonState(0)
             return
         if (os.path.exists(folder)):
-            if (os.path.exists(os.path.join(folder, "Nintendo 3DS"))):
-                self.miscInfoLabel.setText("Valid 3DS SD card detected")
-                self.miscInfoLabel.setStyleSheet("color: green")
+            bmsk = CTGP7Updater.checkForInstallOfPath(folder)
+            self.miscInfoLabel.setText("Ready to install CTGP-7.")
+            self.miscInfoLabel.setStyleSheet("color: #084")
+            if not os.path.exists(os.path.join(folder,"Nintendo 3DS")):
+                self.miscInfoLabel.setText("This path appears to not be of a 3DS SD Card.")
+                self.miscInfoLabel.setStyleSheet("color: #c60")
+            if (bmsk & 3)==2:
+                self.miscInfoLabel.setText("Corrupted CTGP-7 installation detected.")
+                self.miscInfoLabel.setStyleSheet("color: #f40")
+                self.setStartButtonState(3)
+            elif bmsk & 8:
+                self.miscInfoLabel.setText("Broken CTGP-7 installation detected.")
+                self.miscInfoLabel.setStyleSheet("color: #f24")
+                self.setStartButtonState(3)
+            elif bmsk & 1:
+                self.setStartButtonState(1)
             else:
-                self.miscInfoLabel.setText("Folder exists, but is not a valid 3DS SD card")
-                self.miscInfoLabel.setStyleSheet("color: orange")
-            self.setStartButtonState(1)
+                self.hasPending = bool(bmsk & 4)
+                self.miscInfoLabel.setText("Valid CTGP-7 installation detected.")
+                self.miscInfoLabel.setStyleSheet("color: #480")
+                self.setStartButtonState(2)
         else:
             self.miscInfoLabel.setText("Folder does not exist")
             self.miscInfoLabel.setStyleSheet("color: red")
@@ -178,7 +203,7 @@ class Window(QMainWindow, Ui_MainWindow):
             self.sdRootText.setText(folder_path)
     
     def showHelpDialog(self):
-        QMessageBox.information(self, "About", "CTGP-7 Installer v1.0<br><br>If you are having issues, ask for help in the <a href='https://discord.com/invite/0uTPwYv3SPQww54l'>CTGP-7 Discord Server</a>.")
+        QMessageBox.information(self, "About", "CTGP-7 Installer v1.1<br><br>If you are having issues, ask for help in the <a href='https://discord.com/invite/0uTPwYv3SPQww54l'>CTGP-7 Discord Server</a>.")
 
     def connectSignalsSlots(self):
         self.sdBrowseButton.clicked.connect(self.selectSDDirectory)

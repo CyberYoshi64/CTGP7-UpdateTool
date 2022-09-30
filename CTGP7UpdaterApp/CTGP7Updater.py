@@ -16,13 +16,14 @@ class CTGP7Updater:
     _DL_ATTEMPT_TOTALCNT = 30
     _VERSION_FILE_PATH = ["config", "version.bin"]
     _PENDINGUPDATE_PATH = ["config", "pendingUpdate.bin"]
+    _REINSTALLFLAG_PATH = ["config", "forceInstall.flag"]
     _SLACK_FREE_SPACE = 20000000
 
     class FileListEntry:
 
         def __init__(self, ver: int, method, path: str, url: str) -> None:
             self.filePath = path
-            self.forVersion = ver # Unused, but specified anyway
+            self.forVersion = ver # Unused
             self.fileMethod = method
             self.havePerformed = False
             self.isStoppedCallback = None
@@ -55,21 +56,22 @@ class CTGP7Updater:
                 self.forVersion) + \
                 self.remoteName.encode("utf8") + b'\0'
         
-        def _downloadFile(self): 
+        def _downloadFile(self):
+            _DOWN_PART_EXT = ".part" # Better safe than sorry
             countRetry = 0
             userCancel = False
             while (True):
                 try:
                     CTGP7Updater.mkFoldersForFile(self.filePath)
                     u = urlopen(self.url, timeout=10)
-                    with open(self.filePath, 'wb') as downFile:
+                    with open(self.filePath + _DOWN_PART_EXT, 'wb') as downFile:
 
                         fileDownSize = int(u.getheader("Content-Length"))
 
                         fileDownCurr = 0
-                        block_sz = 1024 * 8
+                        block_sz = 8192
                         while True:
-                            if (self.isStoppedCallback is not None and self.isStoppedCallback()):
+                            if userCancel or (self.isStoppedCallback is not None and self.isStoppedCallback()):
                                 userCancel = True
                                 raise Exception("User cancelled installation")
                             buffer = u.read(block_sz)
@@ -82,9 +84,12 @@ class CTGP7Updater:
                             if (self.fileProgressCallback is not None):
                                 self.fileProgressCallback(fileDownCurr, fileDownSize, self.fileOnlyName)
                         break
-                        
+                    CTGP7Updater.fileMove(self.filePath+_DOWN_PART_EXT, self.filePath)
+                except KeyboardInterrupt:
+                    userCancel = True # Terminal uses Ctrl+C to signal cancelling
                 except Exception as e:
                     if (countRetry >= CTGP7Updater._DL_ATTEMPT_TOTALCNT or userCancel):
+                        CTGP7Updater.fileDelete(self.filePath+_DOWN_PART_EXT)
                         raise Exception("Failed to download file \"{}\": {}".format(self.fileOnlyName, e))
                     else:
                         countRetry += 1
@@ -218,20 +223,24 @@ class CTGP7Updater:
 
     # Return bitmask to prepare and determine, if an
     # update is viable or a reinstall is needed.
-    # bit0 (1) - Folder 3ds and CTGP-7 don't exist together
+    # bit0 (1) - CTGP-7 installation doesn't exist.
     # bit1 (2) - Config missing or invalid
     # bit2 (4) - A pending update is available
+    # bit3 (8) - Installation has been flagged for reinstall as updating is not possible.
     @staticmethod
     def checkForInstallOfPath(path:str):
         bitMask:int = \
-        (not os.path.exists(os.path.join(path, "3ds")))<<0|\
         (not os.path.exists(os.path.join(path, "CTGP-7")))<<0|\
         (not os.path.exists(os.path.join(path, "CTGP-7", *CTGP7Updater._VERSION_FILE_PATH)))<<1|\
-        (os.path.exists(os.path.join(path, "CTGP-7", *CTGP7Updater._PENDINGUPDATE_PATH)))<<2
+        (os.path.exists(os.path.join(path, "CTGP-7", *CTGP7Updater._PENDINGUPDATE_PATH)))<<2|\
+        (os.path.exists(os.path.join(path, "CTGP-7", *CTGP7Updater._REINSTALLFLAG_PATH)))<<3
         
-        if not (bitMask & 2):
-            vfSz = os.stat(os.path.join(path, "CTGP-7", *CTGP7Updater._VERSION_FILE_PATH)).st_size
-            bitMask |= (vfSz<3 or vfSz>8)<<1
+        try:
+            if not (bitMask & 2):
+                vfSz = os.stat(os.path.join(path, "CTGP-7", *CTGP7Updater._VERSION_FILE_PATH)).st_size
+                bitMask |= (vfSz<3 or vfSz>8)<<1
+        except:
+            bitMask |= 2
         
         return bitMask
 
@@ -246,6 +255,14 @@ class CTGP7Updater:
             self.latestVersion = self._downloadString(self.baseURL + CTGP7Updater._LATEST_VER_LOCATION).replace("\n", "").replace("\r", "")
         except Exception as e:
             raise Exception("Failed to get latest version: {}".format(e))
+
+    def makeReinstallFlag(self):
+        try:
+            p = os.path.join(self.basePath, "CTGP-7", *self._REINSTALLFLAG_PATH)
+            CTGP7Updater.mkFoldersForFile(p)
+            open(p, 'wb').close()
+        except:
+            pass
 
     # Using this to simplify reading from pendingUpdate.bin
     # fb is a BufferedReader
@@ -298,6 +315,7 @@ class CTGP7Updater:
                     with open(configPath, "rb") as vf:
                         localVersion = vf.read().decode("utf-8")
                 except Exception as e:
+                    self.makeReinstallFlag()
                     raise Exception("Could not read the version file: {}".format(e))
 
                 fileListURL = self._downloadString(self.baseURL + CTGP7Updater._UPDATER_FILE_URL).replace("\n", "").replace("\r", "")
@@ -312,9 +330,10 @@ class CTGP7Updater:
                 try:
                     chglogIdx = changelogData.index(localVersion)
                 except:
+                    self.makeReinstallFlag()
                     raise Exception("Current version not known. The version file might be corrupted or has been modified.")
                 if chglogIdx == len(changelogData)-1:
-                    raise Exception("There are no updates available; will not proceed further.")
+                    raise Exception("There are no updates available. If this is not correct, please try again later.")
 
                 progTotal = len(changelogData) - chglogIdx
                 for index in range(chglogIdx + 1, len(changelogData)):
@@ -393,6 +412,7 @@ class CTGP7Updater:
                 if not self.isInstaller:
                     self._log("Marking update as pending...")
                     self.makePendingUpdate()
+                if type(e)==KeyboardInterrupt: raise Exception("User cancelled installation") # Terminal
                 raise Exception(e)
 
         self._prog(self.currDownloadCount, self.downloadCount)
@@ -425,6 +445,7 @@ class CTGP7Updater:
             with open(configPath, "wb") as vf:
                 vf.write(self.latestVersion.encode("ascii"))
         except Exception as e:
+            self.makeReinstallFlag()
             raise Exception("Failed to write version info: {}".format(e))
         
         self._log("Installation complete!")

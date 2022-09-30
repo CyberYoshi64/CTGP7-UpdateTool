@@ -30,7 +30,7 @@ try:
     makeNewInstall = False; madeSaveBackup = False
     didProcessSucceed = False
     
-    print("CTGP-7 Update Tool (Terminal) v1.2")
+    print("CTGP-7 Update Tool (Terminal) v1.1")
     if arg.path != None:
         sdPath = arg.path
         print("Using path from argument")
@@ -55,18 +55,32 @@ Continue anyway?""".format(sdPath)):
     savefsPath = os.path.join(sdPath, "CTGP-7", "savefs")
     savefsCopy = os.path.join(sdPath, "CTGP-7savebak")
 
-    if not arg.install and (installPathFlag & 3):
+    makeNewInstall = bool(installPathFlag & 11)
+
+    if not arg.install and (installPathFlag & 3)==2:
         if not ConsoleConfirmed("""\
 There was no valid CTGP-7 installation detected.
 If there is one, it appears to be corrupted.
 Proceeding will wipe the installation and make a new one.
 
-Do you wish to continue anyway?"""):
-            raise Exception("User refused to reinstall the modpack.")
+Do you wish to continue anyway?
+(Your save data will be backed up, if possible.)"""):
+            raise Exception("User refused to reinstall the mod.")
+        makeNewInstall = True
+    
+    if not arg.install and (installPathFlag & 8):
+        if not ConsoleConfirmed("""\
+This installation is flagged for reinstall as it cannot be
+updated.
+Proceeding will wipe the installation and make a new one.
+
+Do you wish to continue anyway?
+(Your save data will be backed up, if possible.)"""):
+            raise Exception("User refused to reinstall the mod.")
         makeNewInstall = True
     
     if arg.install:
-        print("!! WARNING: -i/--install specified, forcing a re-install.")
+        print("!! WARNING: -i/--install specified, forcing a reinstall.")
         makeNewInstall = True
 
     # Console-only; GUI will warn immediately and not take a hold
@@ -107,7 +121,7 @@ Do you want to proceed?""".format(_INSTALLER_VERB[updater.isInstaller], updater.
 Failed making backup of the save data:
 {}
 
-Proceeding will wipe your save data. Continue?""".format(e)):
+Proceeding will wipe your save data. Continue anyway?""".format(e)):
                     raise Exception("User cancelled installation: save backup failed")
 
     updater.cleanInstallFolder()
@@ -137,7 +151,7 @@ except Exception as e:
 An error has occured:
 {}
 
-Should issues persist, ask for help in the CTGP-7
+Should this error keep occuring, ask for help in the CTGP-7
 Discord Server: https://discord.com/invite/0uTPwYv3SPQww54l""".format(e))
 
 if not arg.yes:
