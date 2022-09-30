@@ -83,7 +83,6 @@ class CTGP7Updater:
 
                             if (self.fileProgressCallback is not None):
                                 self.fileProgressCallback(fileDownCurr, fileDownSize, self.fileOnlyName)
-                        CTGP7Updater.fileMove(self.filePath+_DOWN_PART_EXT, self.filePath)
                         break
                 except KeyboardInterrupt:
                     userCancel = True # Terminal uses Ctrl+C to signal cancelling
@@ -93,6 +92,7 @@ class CTGP7Updater:
                         raise Exception("Failed to download file \"{}\": {}".format(self.fileOnlyName, e))
                     else:
                         countRetry += 1
+            CTGP7Updater.fileMove(self.filePath+_DOWN_PART_EXT, self.filePath)
 
         def perform(self, lastPerformValue:str):
             if self.fileMethod == "M": # Modify
