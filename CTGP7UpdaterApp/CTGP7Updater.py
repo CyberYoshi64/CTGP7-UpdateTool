@@ -83,8 +83,8 @@ class CTGP7Updater:
 
                             if (self.fileProgressCallback is not None):
                                 self.fileProgressCallback(fileDownCurr, fileDownSize, self.fileOnlyName)
+                        CTGP7Updater.fileMove(self.filePath+_DOWN_PART_EXT, self.filePath)
                         break
-                    CTGP7Updater.fileMove(self.filePath+_DOWN_PART_EXT, self.filePath)
                 except KeyboardInterrupt:
                     userCancel = True # Terminal uses Ctrl+C to signal cancelling
                 except Exception as e:
