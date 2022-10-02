@@ -127,7 +127,7 @@ class Window(QMainWindow, Ui_MainWindow):
 
     def startStopButtonPress(self):
         if (self.startButtonState > 0 and self.startButtonState < 4):
-            if self.startButtonState == 3 and (QMessageBox.question(self, "Broken CTGP-7 installation", "This installation has been flagged for reinstallation, as it cannot be updated. Continuing will wipe this installation and create a new one.<br><br>Do you want to continue anyway?<br>(Your save data will be backed up, if possible.)", QMessageBox.Yes | QMessageBox.No) == QMessageBox.No): return
+            if self.startButtonState == 3 and (QMessageBox.question(self, "Broken CTGP-7 installation", "This installation is either corrupted or was flagged for removal. Continuing will wipe this installation and create a new one.<br><br>Do you want to continue anyway?<br>(Your save data will be backed up, if possible.)", QMessageBox.Yes | QMessageBox.No) == QMessageBox.No): return
             if not self.isInstaller and self.hasPending and (QMessageBox.question(self, "Pending update", "A pending update was detected. You must finish it first, before updating again. Do you want to continue this update?", QMessageBox.Yes | QMessageBox.No) == QMessageBox.No): return
             if self.isInstaller and not self.doSaveBackup(): return
             self.miscInfoLabel.setText("")
