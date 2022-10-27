@@ -97,13 +97,35 @@ class TestCTGP7Updater:
             (0, "D", "/testfile2.bin", "/testfile2.bin"),
             (0, "F", "/testfile1.bin", "/testfile1.bin"),
             (0, "T", "/testfile3.bin", "/testfile3.bin"),
+            (0, "I", "/testfile4.bin", "/testfile4.bin"),
         ]),
         ], indirect=["updater"])
     def test_fetchinstallfilelist(self, updater: CTGP7Updater, expectedList):
         updater.loadUpdateInfo()
         entries = []
         for e in expectedList:
-            entries.append(CTGP7Updater.FileListEntry(e[0], e[1], updater._buildFilePath(e[2]), updater._buildFileURL(e[3])))
+            entries.append(CTGP7Updater.FileListEntry(e[0], e[1], updater._buildFilePath(e[2]), updater._buildFileURL(e[3], False)))
+        assert updater.fileList == entries
+
+    @pytest.mark.parametrize("updater,expectedList", [
+        ("data4_1", [
+            (0, "I", "/testfile1.bin", "/testfile1.bin"),
+            (0, "C", "/testfile1.bin", "/testfile1.bin"),
+            (0, "C", "/testfile2.bin", "/testfile2.bin"),
+            (0, "M", "/testfile2.bin", "/testfile2.bin"),
+            (0, "I", "/testfile3.bin", "/testfile3.bin"),
+            (0, "I", "/testfile3.bin", "/testfile3.bin"),
+            (0, "C", "/testfile3.bin", "/testfile3.bin"),
+            (0, "I", "/testfile4.bin", "/testfile4.bin"),
+            (0, "M", "/testfile4.bin", "/testfile4.bin"),
+        ]),
+        ], indirect=["updater"])
+    def test_fetchinstallfilelist_withcitra(self, updater: CTGP7Updater, expectedList):
+        updater.isCitra = True
+        updater.loadUpdateInfo()
+        entries = []
+        for e in expectedList:
+            entries.append(CTGP7Updater.FileListEntry(e[0], e[1], updater._buildFilePath(e[2]), updater._buildFileURL(e[3], e[1] == "C")))
         assert updater.fileList == entries
     
     @pytest.mark.parametrize("updater", ["data5"], indirect=["updater"])
@@ -147,15 +169,18 @@ class TestCTGP7Updater:
 
     @pytest.mark.parametrize("updater", ["data8"], indirect=["updater"])
     def test_doinstall(self, updater: CTGP7Updater):
+        updater.isCitra = True
         updater.getLatestVersion()
         updater.loadUpdateInfo()
         updater.startUpdate()
 
         for e in updater.fileList:
+            if (e.fileMethod == 'I'):
+                continue
             if "tooInstall" in e.filePath:
                 assert not os.path.exists(e.filePath)
             else:
-                assert filecmp.cmp(pathlib.Path("testData/data8/data/" + e.fileOnlyName).resolve(), e.filePath)
+                assert filecmp.cmp(pathlib.Path("testData/data8/" + ("data" if e.fileMethod == "M" else "dataCitra") + "/" + e.fileOnlyName).resolve(), e.filePath)
 
         mainfolder = os.path.join(updater.basePath, "CTGP-7")
         hbrwfolder = os.path.join(updater.basePath, "3ds")

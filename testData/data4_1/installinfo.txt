@@ -1,0 +1,9 @@
+M/testfile1.bin
+C/testfile1.bin
+C/testfile2.bin
+M/testfile2.bin
+C/testfile3.bin
+M/testfile3.bin
+C/testfile3.bin
+M/testfile4.bin
+M/testfile4.bin

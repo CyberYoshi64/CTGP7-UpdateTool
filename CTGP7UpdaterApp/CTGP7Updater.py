@@ -12,6 +12,7 @@ class CTGP7Updater:
     _UPDATER_CHGLOG_FILE = "changeloglist"
     _UPDATER_FILE_URL = "fileListPrefix.txt"
     _FILES_LOCATION = "data"
+    _FILES_LOCATION_CITRA = "dataCitra"
     _LATEST_VER_LOCATION = "latestver"
     _DL_ATTEMPT_TOTALCNT = 30
     _VERSION_FILE_PATH = ["config", "version.bin"]
@@ -95,7 +96,7 @@ class CTGP7Updater:
             CTGP7Updater.fileMove(self.filePath+_DOWN_PART_EXT, self.filePath)
 
         def perform(self, lastPerformValue:str):
-            if self.fileMethod == "M": # Modify
+            if self.fileMethod == "M" or self.fileMethod == "C": # Modify
                 self._downloadFile()
                 return None
             elif self.fileMethod == "D": # Delete
@@ -127,6 +128,7 @@ class CTGP7Updater:
         self.isStopped = False
         self.downloadSize = 0
         self.currentUpdateIndex = 0
+        self.isCitra = False
     
     @staticmethod
     def fileDelete(file:str) -> None:
@@ -154,8 +156,8 @@ class CTGP7Updater:
     def _buildFilePath(self, path: str):
         return os.path.join(os.path.join(self.basePath, "CTGP-7"), path.replace("/", os.path.sep)[1:])
     
-    def _buildFileURL(self, path: str):
-        return self.baseURL + CTGP7Updater._FILES_LOCATION + path
+    def _buildFileURL(self, path: str, isCitra: bool):
+        return self.baseURL + (CTGP7Updater._FILES_LOCATION_CITRA if isCitra else CTGP7Updater._FILES_LOCATION) + path
 
     def _parseAndSortDlList(self, dll:list):
         allFilePaths=[]; allFileModes=[]; ret=[]; oldf=""
@@ -171,16 +173,19 @@ class CTGP7Updater:
                     raise Exception("Failed to parse needed download size: {}".format(e))
             else:
                 filePathIndex = 0
-                if (mode == "M" or mode == "D"):
+                if (mode == "C" and not self.isCitra):
+                    dll[i] = ("I", dll[i][1])
+                    mode = "I"
+                if (mode == "C" or mode == "M" or mode == "D"):
                     while (filePathIndex < len(allFilePaths)):
-                        if (path == allFilePaths[filePathIndex] and (allFileModes[filePathIndex] == "M" or allFileModes[filePathIndex] == "D")):
+                        if (path == allFilePaths[filePathIndex] and (allFileModes[filePathIndex] == "M" or allFileModes[filePathIndex] == "D" or (mode == "C" and allFileModes[filePathIndex] == "C"))):
                             allFileModes[filePathIndex] = "I"
                         filePathIndex += 1
                 allFilePaths.append(path); allFileModes.append(mode)
         
         for i in range(len(allFilePaths)):
-            if allFileModes[i]=="M": self.downloadCount+=1
-            ret.append(CTGP7Updater.FileListEntry(self.currentUpdateIndex, allFileModes[i], self._buildFilePath(allFilePaths[i]), self._buildFileURL(allFilePaths[i])))
+            if allFileModes[i]=="M" or allFileModes[i]=="C": self.downloadCount+=1
+            ret.append(CTGP7Updater.FileListEntry(self.currentUpdateIndex, allFileModes[i], self._buildFilePath(allFilePaths[i]), self._buildFileURL(allFilePaths[i], allFileModes[i] == "C")))
 
         return ret
 

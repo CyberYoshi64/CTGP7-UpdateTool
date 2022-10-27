@@ -4,3 +4,4 @@ M/testfile1.bin
 D/testfile2.bin
 F/testfile1.bin
 T/testfile3.bin
+C/testfile4.bin

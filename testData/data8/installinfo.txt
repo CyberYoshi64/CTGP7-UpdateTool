@@ -2,3 +2,5 @@ M/cia/tooInstall.3dsx
 M/cia/tooInstall.cia
 M/test.bin
 M/test.txt
+M/test2.txt
+C/test2.txt
