@@ -1,11 +1,11 @@
 #!/usr/bin/python3
 from CTGP7UpdaterApp.CTGP7Updater import CTGP7Updater
-import os, shutil, argparse
+import os, sys, shutil, argparse
 
 argprs = argparse.ArgumentParser()
 argprs.add_argument("-i", "--install", action="store_true", help="Force a re-install, even is updating is viable.")
 argprs.add_argument("-p", dest="path", help="Specify a path to a 3DS SD Card instead of trying to auto-detect one.")
-argprs.add_argument("-y", "--yes", action="store_true", help="Always answer 'yes'. Use this, only if you know what you're up for.")
+argprs.add_argument("-y", "--yes", action="store_true", help="Answer 'yes' to any question. ONLY USE WHEN YOU KNOW WHAT YOU'RE DOING!")
 arg = argprs.parse_args()
 
 def logger(data:dict):
@@ -37,9 +37,11 @@ try:
     else:
         sdPath = CTGP7Updater.findNintendo3DSRoot()
         if sdPath == None:
-            raise Exception("Cannot determine a suitable SD Card.")
+            raise Exception("Cannot determine a suitable SD Card.{}Try specifying the path with -p".format(os.linesep))
         print("Detected SD Card: \"{}\"".format(sdPath))
     
+    isInstallForCitra = CTGP7Updater.isCitraDirectory(sdPath)
+
     if not os.path.exists(sdPath):
         raise Exception("The path '{}' does not exist. Make sure you entered the path correctly.".format(sdPath))
     if not CTGP7Updater._isValidNintendo3DSSDCard(sdPath) and\
@@ -83,11 +85,19 @@ Do you wish to continue anyway?
         print("!! WARNING: -i/--install specified, forcing a reinstall.")
         makeNewInstall = True
 
-    # Console-only; GUI will warn immediately and not take a hold
-    # of this value
-    if makeNewInstall: installPathFlag &= 3
+    if makeNewInstall and (isInstallForCitra == None):
+        print("""\
+Unable to determine for which platform CTGP-7 is meant to be installed for.
 
-    updater = CTGP7Updater(makeNewInstall)
+Please specify the platform.""")
+        try:    isInstallForCitra = input("[3DS / Citra]").upper().startswith("C")
+        except: raise Exception("User cancelled installation.")
+
+    if makeNewInstall:
+        installPathFlag &= 3
+        print("Installing CTGP-7 for {}".format("Citra" if isInstallForCitra else "3DS"))
+
+    updater = CTGP7Updater(makeNewInstall, isInstallForCitra)
     updater.fetchDefaultCDNURL()
     updater.setLogFunction(logger)
     updater.setBaseDirectory(sdPath)
@@ -158,4 +168,4 @@ if not arg.yes:
     try:    input("Press Return to exit the application.")
     except: pass
 
-exit(not didProcessSucceed)
+sys.exit(not didProcessSucceed)

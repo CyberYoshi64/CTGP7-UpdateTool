@@ -17,6 +17,7 @@ class CTGP7Updater:
     _DL_ATTEMPT_TOTALCNT = 30
     _VERSION_FILE_PATH = ["config", "version.bin"]
     _PENDINGUPDATE_PATH = ["config", "pendingUpdate.bin"]
+    _ISCITRAFLAG_PATH = ["config", "citra.flag"]
     _REINSTALLFLAG_PATH = ["config", "forceInstall.flag"]
     _SLACK_FREE_SPACE = 20000000
 
@@ -115,7 +116,7 @@ class CTGP7Updater:
             else:
                 raise Exception("Unknown file mode: {}".format(self.fileMethod))
 
-    def __init__(self, isInstaller=True) -> None:
+    def __init__(self, isInstaller=True, isCitra=False) -> None:
         self.isInstaller = isInstaller
         self.basePath = ""
         self.downloadCount = 0
@@ -128,7 +129,7 @@ class CTGP7Updater:
         self.isStopped = False
         self.downloadSize = 0
         self.currentUpdateIndex = 0
-        self.isCitra = False
+        self.isCitra = isCitra
     
     @staticmethod
     def fileDelete(file:str) -> None:
@@ -401,6 +402,11 @@ class CTGP7Updater:
             raise Exception("Failed to create CTGP-7 directory: {}".format(e))
 
         CTGP7Updater.fileDelete(os.path.join(self.basePath, "CTGP-7", *self._PENDINGUPDATE_PATH))
+        if self.isCitra:
+            configPath = os.path.join(self.basePath, "CTGP-7", *self._ISCITRAFLAG_PATH)
+            self.mkFoldersForFile(configPath)
+            with open(configPath, "wb") as vf:
+                vf.write(b'empty')
         prevReturnValue = None
         self.currDownloadCount = 0
         for entry in self.fileList:
@@ -462,3 +468,23 @@ class CTGP7Updater:
         if (os.path.exists(mainfolder)):
             self._log("Cleaning up previous CTGP-7 installation...")
             shutil.rmtree(mainfolder)
+
+    @staticmethod
+    def isCitraDirectory(path:str): # True/False: Citra/3DS , None: Unsure
+        if os.name == "nt":
+            citraPath = os.path.join(os.environ["APPDATA"],"Citra","sdmc")
+        else:
+            citraPath = os.path.join(os.environ["HOME"],".local","share","citra-emu","sdmc")
+        
+        try:
+            if os.path.samefile(path, citraPath): # Linux is case-sensitive, Windows may use inconsistent casing, ruining a simple ==
+                                                  # Added bonus: symlinks would work this way too.
+                return True # These paths are fixed, so it's definitely Citra
+            else:
+                if os.path.exists(os.path.join(path, "boot.firm")):
+                    return False # This path is of a hacked 3DS's SD.
+                if os.path.exists(os.path.join(path, *CTGP7Updater._ISCITRAFLAG_PATH)):
+                    return True # This file is used to only ask during initial installation
+            return None # It's unsure, will need to be asked at front-end.
+        except:
+            return None # os.path.samefile could throw exception if Citra was never ran by current user; asking anyway

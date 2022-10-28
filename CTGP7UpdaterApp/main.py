@@ -22,11 +22,12 @@ class WorkerSignals(QObject):
 
 class CTGP7InstallerWorker(QRunnable):
 
-    def __init__(self, basedir, isInstall):
+    def __init__(self, basedir, isInstall, isCitra):
         super(CTGP7InstallerWorker, self).__init__()
         self.signals = WorkerSignals()
         self.basedir = basedir
         self.isInstall = isInstall
+        self.isCitra = isCitra
         self.signals.stop.connect(self.onStop)
         self.updater = None
 
@@ -41,7 +42,7 @@ class CTGP7InstallerWorker(QRunnable):
     def run(self):
         try:
             self.logData({"m": "Starting CTGP-7 Installation..."})
-            self.updater = CTGP7Updater(self.isInstall)
+            self.updater = CTGP7Updater(self.isInstall, self.isCitra)
             self.updater.fetchDefaultCDNURL()
             self.updater.setLogFunction(self.logData)
             self.updater.setBaseDirectory(self.basedir)
@@ -64,6 +65,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.progressInfoLabel.setText("")
         self.setStartButtonState(0)
         self.isInstaller = True
+        self.isCitraPath = None
         self.hasPending = False
         self.didSaveBackup = False
         self.scanForNintendo3DSSD()
@@ -127,11 +129,25 @@ class Window(QMainWindow, Ui_MainWindow):
 
     def startStopButtonPress(self):
         if (self.startButtonState > 0 and self.startButtonState < 4):
-            if self.startButtonState == 3 and (QMessageBox.question(self, "Broken CTGP-7 installation", "This installation is either corrupted or was flagged for removal. Continuing will wipe this installation and create a new one.<br><br>Do you want to continue anyway?<br>(Your save data will be backed up, if possible.)", QMessageBox.Yes | QMessageBox.No) == QMessageBox.No): return
+            if self.startButtonState == 3 and (QMessageBox.question(self, "Broken CTGP-7 installation", "This installation is either corrupted or was flagged for removal. Proceeding will wipe this installation and create a new one.<br><br>Do you want to proceed anyway?<br>(Your save data will be backed up, if possible.)", QMessageBox.Yes | QMessageBox.No) == QMessageBox.No): return
+
+            if self.isInstaller and (self.isCitraPath == None):
+                dlg = QMessageBox(self)
+                dlg.setWindowTitle("Select a platform to install for")
+                dlg.setIcon(QMessageBox.Question)
+                dlg.setText("Cannot determine whether this installation is meant for a 3DS or Citra.<br><br>Please select which platform you want to install CTGP-7 for.")
+                dlgIs3DS = dlg.addButton("3DS", QMessageBox.NoRole)
+                dlgisCitra = dlg.addButton("Citra", QMessageBox.NoRole)
+                dlgCancel = dlg.addButton("Cancel", QMessageBox.NoRole)
+                dlg.setDefaultButton(dlgCancel)
+                dlg.exec_()
+                if dlg.clickedButton() == dlgCancel: return
+                self.isCitraPath = (dlg.clickedButton() == dlgisCitra)
+
             if not self.isInstaller and self.hasPending and (QMessageBox.question(self, "Pending update", "A pending update was detected. You must finish it first, before updating again. Do you want to continue this update?", QMessageBox.Yes | QMessageBox.No) == QMessageBox.No): return
             if self.isInstaller and not self.doSaveBackup(): return
             self.miscInfoLabel.setText("")
-            self.installerworker = CTGP7InstallerWorker(self.sdRootText.text(), self.isInstaller)
+            self.installerworker = CTGP7InstallerWorker(self.sdRootText.text(), self.isInstaller, self.isCitraPath)
             self.installerworker.signals.progress.connect(self.reportProgress)
             self.installerworker.signals.success.connect(self.installOnSuccess)
             self.installerworker.signals.error.connect(self.installOnError)
@@ -168,6 +184,7 @@ class Window(QMainWindow, Ui_MainWindow):
             self.miscInfoLabel.setText("")
             self.setStartButtonState(0)
             return
+        self.isCitraPath = CTGP7Updater.isCitraDirectory(folder)
         if (os.path.exists(folder)):
             bmsk = CTGP7Updater.checkForInstallOfPath(folder)
             self.miscInfoLabel.setText("Ready to install CTGP-7.")
