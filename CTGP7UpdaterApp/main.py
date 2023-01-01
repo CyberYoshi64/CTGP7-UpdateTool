@@ -264,7 +264,7 @@ def startUpdaterApp():
     app = QApplication(sys.argv)
     win = Window()
     try:
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(u"ctgp7.ctgp7.installer.1_0") # So that the taskbar shows the window icon on windows
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(u"ctgp7.ctgp7.installer.1_1") # So that the taskbar shows the window icon on windows
     except:
         pass
     win.show()

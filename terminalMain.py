@@ -30,7 +30,7 @@ try:
     makeNewInstall = False; madeSaveBackup = False
     didProcessSucceed = False
     
-    print("CTGP-7 Update Tool (Terminal) v1.1")
+    print("CTGP-7 Installer v1.1-CLI")
     if arg.path != None:
         sdPath = arg.path
         print("Using path from argument")
