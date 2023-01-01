@@ -134,10 +134,24 @@ class Window(QMainWindow, Ui_MainWindow):
         if (folder is not None):
             self.sdRootText.setText(folder)
         elif (os.path.exists(CTGP7Updater.getCitraDir())):
-        	self.sdRootText.setText(CTGP7Updater.getCitraDir())
+            self.sdRootText.setText(CTGP7Updater.getCitraDir())
 
+    def updateButtonPress(self):
+        self.isInstaller = False
+        self.miscInfoLabel.setText("")
+        self.installerworker = CTGP7InstallerWorker(self.sdRootText.text(), self.isInstaller, self.isCitraPath)
+        self.installerworker.signals.progress.connect(self.reportProgress)
+        self.installerworker.signals.success.connect(self.installOnSuccess)
+        self.installerworker.signals.error.connect(self.installOnError)
+        self.setStartButtonState(4)
+        self.sdBrowseButton.setEnabled(False)
+        self.helpButton.setEnabled(False)
+        self.sdRootText.setEnabled(False)
+        self.threadpool.start(self.installerworker)
+    
     def startStopButtonPress(self):
         if (self.startButtonState > 0 and self.startButtonState < 4):
+            if self.startButtonState == 2 and (QMessageBox.question(self, "Confirm re-installation", "You are about to re-install CTGP-7.<br>Any modifications via MyStuff will be deleted.<br><br>Do you want to continue?<br>(Your save data will be backed up, if possible.)", QMessageBox.Yes | QMessageBox.No) == QMessageBox.No): return
             if self.startButtonState == 3 and (QMessageBox.question(self, "Broken CTGP-7 installation", "This installation is either corrupted or was flagged for removal. Proceeding will wipe this installation and create a new one.<br><br>Do you want to proceed anyway?<br>(Your save data will be backed up, if possible.)", QMessageBox.Yes | QMessageBox.No) == QMessageBox.No): return
 
             if self.isInstaller and (self.isCitraPath == None):
@@ -155,6 +169,7 @@ class Window(QMainWindow, Ui_MainWindow):
 
             if not self.isInstaller and self.hasPending and (QMessageBox.question(self, "Pending update", "A pending update was detected. You must finish it first, before updating again. Do you want to continue this update?", QMessageBox.Yes | QMessageBox.No) == QMessageBox.No): return
             if self.isInstaller and not self.doSaveBackup(): return
+            self.isInstaller = True
             self.miscInfoLabel.setText("")
             self.installerworker = CTGP7InstallerWorker(self.sdRootText.text(), self.isInstaller, self.isCitraPath)
             self.installerworker.signals.progress.connect(self.reportProgress)
@@ -173,20 +188,27 @@ class Window(QMainWindow, Ui_MainWindow):
     def setStartButtonState(self, state):
         self.startButtonState = state
         self.startStopButton.setEnabled(state != 0)
+        self.updateButton.setText("Update")
+        self.updateButton.setEnabled(True)
+        self.updateButton.setHidden(True)
         if (state == 0):
             self.startStopButton.setText("")
             self.startStopButton.clearFocus()
+            self.updateButton.setText("")
+            self.updateButton.clearFocus()
         elif (state == 1):
-            self.startStopButton.setText("INSTALL")
-            self.isInstaller = True
+            self.startStopButton.setText("Install")
+            self.updateButton.setEnabled(False)
         elif (state == 2):
-            self.startStopButton.setText("UPDATE")
-            self.isInstaller = False
+            self.startStopButton.setText("Re-install")
+            self.updateButton.setHidden(False)
         elif (state == 3):
-            self.startStopButton.setText("REINSTALL")
-            self.isInstaller = True
+            self.startStopButton.setText("Re-install")
+            self.updateButton.setEnabled(False)
         elif (state == 4):
-            self.startStopButton.setText("CANCEL")
+            self.startStopButton.setText("Cancel")
+            self.updateButton.setEnabled(False)
+            self.updateButton.setHidden(True)
 
     def applySDFolder(self, folder: str):
         if (folder == "" or folder[-1]==" "):
@@ -236,6 +258,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.sdRootText.textChanged.connect(lambda s: self.applySDFolder(s))
         self.helpButton.clicked.connect(self.showHelpDialog)
         self.startStopButton.clicked.connect(self.startStopButtonPress)
+        self.updateButton.clicked.connect(self.updateButtonPress)
 
 def startUpdaterApp():
     app = QApplication(sys.argv)

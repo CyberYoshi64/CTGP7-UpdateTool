@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'mainyVoaKI.ui'
+## Form generated from reading UI file 'mainfvFCAH.ui'
 ##
 ## Created by: Qt User Interface Compiler version 5.15.7
 ##
@@ -18,8 +18,8 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(600, 400)
-        MainWindow.setMinimumSize(QSize(600, 400))
+        MainWindow.resize(640, 400)
+        MainWindow.setMinimumSize(QSize(512, 384))
         MainWindow.setMaximumSize(QSize(16777215, 16777215))
         icon = QIcon()
         icon.addFile(u":/images/window_icon.png", QSize(), QIcon.Normal, QIcon.Off)
@@ -56,17 +56,6 @@ class Ui_MainWindow(object):
 
         self.verticalLayout.addLayout(self.horizontalLayout)
 
-        self.label_2 = QLabel(self.centralwidget)
-        self.label_2.setObjectName(u"label_2")
-        font = QFont()
-        font.setPointSize(18)
-        font.setBold(True)
-        font.setWeight(75)
-        self.label_2.setFont(font)
-        self.label_2.setAlignment(Qt.AlignCenter)
-
-        self.verticalLayout.addWidget(self.label_2)
-
         self.verticalSpacer_2 = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.verticalLayout.addItem(self.verticalSpacer_2)
@@ -89,7 +78,7 @@ class Ui_MainWindow(object):
         sizePolicy1.setVerticalStretch(0)
         sizePolicy1.setHeightForWidth(self.sdRootText.sizePolicy().hasHeightForWidth())
         self.sdRootText.setSizePolicy(sizePolicy1)
-        self.sdRootText.setMinimumSize(QSize(256, 0))
+        self.sdRootText.setMinimumSize(QSize(272, 0))
 
         self.horizontalLayout_2.addWidget(self.sdRootText)
 
@@ -106,10 +95,11 @@ class Ui_MainWindow(object):
         self.verticalLayout.addLayout(self.horizontalLayout_2)
 
         self.miscInfoLabel = QLabel(self.centralwidget)
+        self.miscInfoLabel.setObjectName(u"miscInfoLabel")
         font = QFont()
         font.setBold(True)
+        font.setWeight(75)
         self.miscInfoLabel.setFont(font)
-        self.miscInfoLabel.setObjectName(u"miscInfoLabel")
         self.miscInfoLabel.setAlignment(Qt.AlignCenter)
 
         self.verticalLayout.addWidget(self.miscInfoLabel)
@@ -118,15 +108,39 @@ class Ui_MainWindow(object):
 
         self.verticalLayout.addItem(self.verticalSpacer)
 
+        self.horizontalLayout_4 = QHBoxLayout()
+        self.horizontalLayout_4.setObjectName(u"horizontalLayout_4")
+        self.horizontalLayout_4.setContentsMargins(-1, 0, -1, 0)
+        self.horizontalSpacer_7 = QSpacerItem(64, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+
+        self.horizontalLayout_4.addItem(self.horizontalSpacer_7)
+
         self.startStopButton = QPushButton(self.centralwidget)
         self.startStopButton.setObjectName(u"startStopButton")
         self.startStopButton.setMinimumSize(QSize(0, 40))
-        font1 = QFont()
-        font1.setBold(True)
-        font1.setWeight(75)
-        self.startStopButton.setFont(font1)
+        self.startStopButton.setFont(font)
 
-        self.verticalLayout.addWidget(self.startStopButton)
+        self.horizontalLayout_4.addWidget(self.startStopButton)
+
+        self.updateButton = QPushButton(self.centralwidget)
+        self.updateButton.setObjectName(u"updateButton")
+        self.updateButton.setEnabled(True)
+        sizePolicy2 = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+        sizePolicy2.setHorizontalStretch(0)
+        sizePolicy2.setVerticalStretch(0)
+        sizePolicy2.setHeightForWidth(self.updateButton.sizePolicy().hasHeightForWidth())
+        self.updateButton.setSizePolicy(sizePolicy2)
+        self.updateButton.setMinimumSize(QSize(0, 40))
+        self.updateButton.setFont(font)
+
+        self.horizontalLayout_4.addWidget(self.updateButton)
+
+        self.horizontalSpacer_8 = QSpacerItem(64, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+
+        self.horizontalLayout_4.addItem(self.horizontalSpacer_8)
+
+
+        self.verticalLayout.addLayout(self.horizontalLayout_4)
 
         self.horizontalLayout_3 = QHBoxLayout()
         self.horizontalLayout_3.setObjectName(u"horizontalLayout_3")
@@ -159,6 +173,7 @@ class Ui_MainWindow(object):
         self.progressBar = QProgressBar(self.centralwidget)
         self.progressBar.setObjectName(u"progressBar")
         self.progressBar.setValue(0)
+        self.progressBar.setTextVisible(True)
 
         self.verticalLayout.addWidget(self.progressBar)
 
@@ -172,10 +187,11 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"CTGP-7 Installer", None))
         self.label.setText("")
-        self.label_2.setText(QCoreApplication.translate("MainWindow", u"Welcome to the CTGP-7 Installer", None))
         self.label_3.setText(QCoreApplication.translate("MainWindow", u"Select target:", None))
         self.sdBrowseButton.setText(QCoreApplication.translate("MainWindow", u"Browse", None))
-        self.startStopButton.setText(QCoreApplication.translate("MainWindow", u"START", None))
+        self.miscInfoLabel.setText(QCoreApplication.translate("MainWindow", u"Miscelaneous Information", None))
+        self.startStopButton.setText(QCoreApplication.translate("MainWindow", u"Button 1", None))
+        self.updateButton.setText(QCoreApplication.translate("MainWindow", u"Button 2", None))
         self.helpButton.setText(QCoreApplication.translate("MainWindow", u"Help", None))
         self.progressInfoLabel.setText(QCoreApplication.translate("MainWindow", u"Progress Information", None))
     # retranslateUi
