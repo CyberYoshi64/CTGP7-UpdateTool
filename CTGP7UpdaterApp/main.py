@@ -63,11 +63,11 @@ class Window(QMainWindow, Ui_MainWindow):
         self.connectSignalsSlots()
         self.progressBar.setEnabled(False)
         self.progressInfoLabel.setText("")
-        self.setStartButtonState(0)
         self.isInstaller = True
         self.isCitraPath = None
         self.hasPending = False
         self.didSaveBackup = False
+        self.setStartButtonState(0)
         self.scanForNintendo3DSSD()
         self.installerworker = None
         self.threadpool = QThreadPool()
@@ -137,6 +137,7 @@ class Window(QMainWindow, Ui_MainWindow):
             self.sdRootText.setText(CTGP7Updater.getCitraDir())
 
     def updateButtonPress(self):
+        if self.hasPending and (QMessageBox.question(self, "Pending update", "A pending update was detected. You must finish it first, before updating again. Do you want to continue this update?", QMessageBox.Yes | QMessageBox.No) == QMessageBox.No): return
         self.isInstaller = False
         self.miscInfoLabel.setText("")
         self.installerworker = CTGP7InstallerWorker(self.sdRootText.text(), self.isInstaller, self.isCitraPath)
@@ -167,7 +168,6 @@ class Window(QMainWindow, Ui_MainWindow):
                 if dlg.clickedButton() == dlgCancel: return
                 self.isCitraPath = (dlg.clickedButton() == dlgisCitra)
 
-            if not self.isInstaller and self.hasPending and (QMessageBox.question(self, "Pending update", "A pending update was detected. You must finish it first, before updating again. Do you want to continue this update?", QMessageBox.Yes | QMessageBox.No) == QMessageBox.No): return
             if self.isInstaller and not self.doSaveBackup(): return
             self.isInstaller = True
             self.miscInfoLabel.setText("")
@@ -188,7 +188,7 @@ class Window(QMainWindow, Ui_MainWindow):
     def setStartButtonState(self, state):
         self.startButtonState = state
         self.startStopButton.setEnabled(state != 0)
-        self.updateButton.setText("Update")
+        self.updateButton.setText("Continue update" if self.hasPending else "Update")
         self.updateButton.setEnabled(True)
         self.updateButton.setHidden(True)
         if (state == 0):
