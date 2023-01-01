@@ -135,6 +135,8 @@ class Window(QMainWindow, Ui_MainWindow):
             self.sdRootText.setText(folder)
         elif (os.path.exists(CTGP7Updater.getCitraDir())):
             self.sdRootText.setText(CTGP7Updater.getCitraDir())
+            QMessageBox.information(self, "Couldn't find SD Card", "Couldn't detect an SD Card but a Citra build was found.<br>If you want to install/update CTGP-7 for a 3DS console, use the \"Browse\" button to navigate to the SD Card of your console.")
+            
 
     def updateButtonPress(self):
         if self.hasPending and (QMessageBox.question(self, "Pending update", "A pending update was detected. You must finish it first, before updating again. Do you want to continue this update?", QMessageBox.Yes | QMessageBox.No) == QMessageBox.No): return
