@@ -203,8 +203,8 @@ class CTGP7Updater:
         try:
             output = urlopen(url, timeout=10).read()
             return output.decode('utf-8')
-        except:
-            raise Exception("Failed download string from URL: {}".format(url))
+        except Exception as e:
+            raise Exception("Failed download string from URL '{}': {}".format(url, e))
 
     def stop(self):
         self.isStopped = True

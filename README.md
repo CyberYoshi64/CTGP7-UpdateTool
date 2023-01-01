@@ -1,6 +1,6 @@
-# CTGP-7 Update Tool
+# CTGP-7 Installer
 
-This is a work-in-progress Python script mimicking CTGP-7's official updater, based on own observations, analysis of the [archived launcher's source code](https://github.com/PabloMK7/CTGP-7_Launcher) and lots of help from PabloMK7 himself.
+This is a Python application mimicking CTGP-7's official updater, based on own observations, analysis of the [archived launcher's source code](https://github.com/PabloMK7/CTGP-7_Launcher) and lots of help from PabloMK7 himself.
 
 Supported platforms: Linux, Windows
 
@@ -22,9 +22,8 @@ Modules needed: `psutil`
 
 (Should you not have this module, install it with `pip install psutil`)
 
-Run `terminalMain.py`.
-On Linux, you must run it through a terminal, obviously.
+Run `terminalMain.py` in a terminal. (duh)
 
-Should there be multiple Nintendo 3DS SD Cards mounted, or your SD Card is not detected, please specify the path to the SD Card (such as `E:` (Windows) or `/media/<user>/SDCARD` (Linux)) as an argument. (Drag'n'dropped folders are also supported)
+Should there be multiple Nintendo 3DS SD Cards mounted, or your SD Card is not detected, please specify the path to the SD Card (such as `E:` (Windows) or `/media/<user>/SDCARD` (Linux)) with the `-p` argument. (Drag'n'dropped folders are also supported)
 
 To see optional arguments, specify `-h` as an argument.
