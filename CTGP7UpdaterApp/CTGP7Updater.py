@@ -132,6 +132,12 @@ class CTGP7Updater:
         self.isCitra = isCitra
     
     @staticmethod
+    def getCitraDir() -> str:
+        if os.name == "nt": return "%s\\Citra\\sdmc"%os.environ['APPDATA']
+        if os.name == "posix": return "%s/.local/share/citra-emu/sdmc"%os.environ['HOME']
+        return "./sdmc"
+    
+    @staticmethod
     def fileDelete(file:str) -> None:
         try: os.stat(file)    # Windows refuses to rename
         except: pass          # if destination exists, so

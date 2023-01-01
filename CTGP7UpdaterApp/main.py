@@ -78,7 +78,15 @@ class Window(QMainWindow, Ui_MainWindow):
         if "p" in data:
             self.progressBar.setEnabled(True)
             self.progressBar.setValue((data["p"][0] / data["p"][1]) * 100)
-
+ 
+    def reSetup(self):
+        self.progressBar.setEnabled(False)
+        self.sdBrowseButton.setEnabled(True)
+        self.helpButton.setEnabled(True)
+        self.sdRootText.setEnabled(True)
+        self.progressInfoLabel.setText("")
+        self.applySDFolder(self.sdRootText.text())
+    
     def installOnError(self, err:str):
         msg = QMessageBox(parent=self)
         msg.setIcon(QMessageBox.Critical)
@@ -90,7 +98,7 @@ class Window(QMainWindow, Ui_MainWindow):
                 b.click()
                 break
         msg.exec_()
-        self.close()
+        self.reSetup()#self.close()
     
     def installOnSuccess(self, ver:str):
         QMessageBox.information(self, "Installation finished", "Installation finished successfully! (v{})<br>Make sure to install the cia file in the CTGP-7 -> cia folder in the SD card.".format(ver))
@@ -103,7 +111,7 @@ class Window(QMainWindow, Ui_MainWindow):
                 except Exception as e:
                     self.installOnError("Failed to restore save backup, please restore it manually: {}".format(e))
                     return
-        self.close()
+        self.reSetup()#self.close()
 
     def doSaveBackup(self):
         try:
@@ -125,7 +133,8 @@ class Window(QMainWindow, Ui_MainWindow):
         folder = CTGP7Updater.findNintendo3DSRoot()
         if (folder is not None):
             self.sdRootText.setText(folder)
-
+        elif (os.path.exists(CTGP7Updater.getCitraDir())):
+        	self.sdRootText.setText(CTGP7Updater.getCitraDir())
 
     def startStopButtonPress(self):
         if (self.startButtonState > 0 and self.startButtonState < 4):

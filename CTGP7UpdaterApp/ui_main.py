@@ -1,25 +1,25 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'mainPTgXrr.ui'
+## Form generated from reading UI file 'mainyVoaKI.ui'
 ##
-## Created by: Qt User Interface Compiler version 5.15.2
+## Created by: Qt User Interface Compiler version 5.15.7
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
 
-from PySide2.QtCore import *
-from PySide2.QtGui import *
-from PySide2.QtWidgets import *
+from PySide2.QtCore import *  # type: ignore
+from PySide2.QtGui import *  # type: ignore
+from PySide2.QtWidgets import *  # type: ignore
 
 import CTGP7UpdaterApp.resources_rc
 
 class Ui_MainWindow(object):
-    def setupUi(self, MainWindow : QMainWindow):
+    def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(700, 500)
-        MainWindow.setMinimumSize(QSize(700, 500))
+        MainWindow.resize(600, 400)
+        MainWindow.setMinimumSize(QSize(600, 400))
         MainWindow.setMaximumSize(QSize(16777215, 16777215))
         icon = QIcon()
         icon.addFile(u":/images/window_icon.png", QSize(), QIcon.Normal, QIcon.Off)
@@ -41,7 +41,7 @@ class Ui_MainWindow(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.label.sizePolicy().hasHeightForWidth())
         self.label.setSizePolicy(sizePolicy)
-        self.label.setMaximumSize(QSize(512, 128))
+        self.label.setMaximumSize(QSize(384, 96))
         self.label.setLayoutDirection(Qt.LeftToRight)
         self.label.setPixmap(QPixmap(u":/images/logo.png"))
         self.label.setScaledContents(True)
@@ -59,7 +59,7 @@ class Ui_MainWindow(object):
         self.label_2 = QLabel(self.centralwidget)
         self.label_2.setObjectName(u"label_2")
         font = QFont()
-        font.setPointSize(20)
+        font.setPointSize(18)
         font.setBold(True)
         font.setWeight(75)
         self.label_2.setFont(font)
@@ -89,7 +89,7 @@ class Ui_MainWindow(object):
         sizePolicy1.setVerticalStretch(0)
         sizePolicy1.setHeightForWidth(self.sdRootText.sizePolicy().hasHeightForWidth())
         self.sdRootText.setSizePolicy(sizePolicy1)
-        self.sdRootText.setMinimumSize(QSize(300, 0))
+        self.sdRootText.setMinimumSize(QSize(256, 0))
 
         self.horizontalLayout_2.addWidget(self.sdRootText)
 
@@ -173,7 +173,7 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"CTGP-7 Installer", None))
         self.label.setText("")
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"Welcome to the CTGP-7 Installer", None))
-        self.label_3.setText(QCoreApplication.translate("MainWindow", u"Select 3DS SD card:", None))
+        self.label_3.setText(QCoreApplication.translate("MainWindow", u"Select target:", None))
         self.sdBrowseButton.setText(QCoreApplication.translate("MainWindow", u"Browse", None))
         self.startStopButton.setText(QCoreApplication.translate("MainWindow", u"START", None))
         self.helpButton.setText(QCoreApplication.translate("MainWindow", u"Help", None))
