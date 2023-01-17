@@ -1,11 +1,19 @@
 import os
-from urllib.request import urlopen
+import urllib3
 import shutil
 import psutil
 import struct
 from typing import List
 
+urlmgr = urllib3.PoolManager(headers={"connection":"keep-alive"})
+def urlopen(url, **kwarg):
+    out = urlmgr.request("GET", url, chunked=True, preload_content=False, **kwarg)
+    if out.status != 200: raise Exception("Received staus code {}".format(out.status))
+    return out
+
 class CTGP7Updater:
+
+    VERSION_NUMBER = "1.1.1"
 
     _BASE_URL_DYN_LINK = "https://ctgp7.page.link/baseCDNURL"
     _INSTALLER_FILE_DIFF = "installinfo.txt"
@@ -213,7 +221,7 @@ class CTGP7Updater:
         return self.isStopped
 
     def _logFileProgressCallback(self, fileDownCurr, fileDownSize, fileOnlyName):
-        self._log("Downloading file {} of {}: \"{}\" ({:.2f}%){}".format(self.currDownloadCount, self.downloadCount, fileOnlyName, (fileDownCurr / fileDownSize) * 100, "\r"*(fileDownCurr<fileDownSize)))
+        self._log("Downloading file {} of {}: \"{}\" ({:.1f}%){}".format(self.currDownloadCount+1, self.downloadCount, fileOnlyName, (fileDownCurr / fileDownSize) * 100, "\r"*(fileDownCurr<fileDownSize)))
     
     def setBaseURL(self, url):
         self.baseURL = url

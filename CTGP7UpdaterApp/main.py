@@ -161,7 +161,7 @@ class Window(QMainWindow, Ui_MainWindow):
                 dlg = QMessageBox(self)
                 dlg.setWindowTitle("Select a platform to install for")
                 dlg.setIcon(QMessageBox.Question)
-                dlg.setText("Cannot determine whether this installation is meant for a 3DS or Citra.<br><br>Please select which platform you want to install CTGP-7 for.")
+                dlg.setText("Unable to determine, whether this installation is meant for a 3DS or Citra.<br><br>Please select which platform you want to install CTGP-7 for.")
                 dlgIs3DS = dlg.addButton("3DS", QMessageBox.NoRole)
                 dlgisCitra = dlg.addButton("Citra", QMessageBox.NoRole)
                 dlgCancel = dlg.addButton("Cancel", QMessageBox.NoRole)
@@ -253,7 +253,7 @@ class Window(QMainWindow, Ui_MainWindow):
             self.sdRootText.setText(folder_path)
     
     def showHelpDialog(self):
-        QMessageBox.information(self, "About", "CTGP-7 Installer v1.1<br><br>If you are having issues, ask for help in the <a href='https://discord.com/invite/0uTPwYv3SPQww54l'>CTGP-7 Discord Server</a>.")
+        QMessageBox.information(self, "About", "CTGP-7 Installer v"+CTGP7Updater.VERSION_NUMBER+"<br><br>If you are having issues, ask for help in the <a href='https://discord.com/invite/0uTPwYv3SPQww54l'>CTGP-7 Discord Server</a>.")
 
     def connectSignalsSlots(self):
         self.sdBrowseButton.clicked.connect(self.selectSDDirectory)
