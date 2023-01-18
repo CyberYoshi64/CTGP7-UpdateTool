@@ -76,7 +76,7 @@ class CTGP7Updater:
                     u = urlopen(self.url, timeout=10)
                     with open(self.filePath + _DOWN_PART_EXT, 'wb') as downFile:
 
-                        fileDownSize = int(u.getheader("Content-Length"))
+                        fileDownSize = int(u.headers.get("Content-Length", 1))
 
                         fileDownCurr = 0
                         block_sz = 8192
