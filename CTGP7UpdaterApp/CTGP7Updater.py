@@ -409,6 +409,8 @@ class CTGP7Updater:
 
     def startUpdate(self):
         mainfolder = os.path.join(self.basePath, "CTGP-7")
+        hbrwfolder = os.path.join(self.basePath, "3ds")
+
         try:
             os.makedirs(mainfolder, exist_ok=True)
         except Exception as e:
@@ -442,7 +444,10 @@ class CTGP7Updater:
         self._prog(self.currDownloadCount, self.downloadCount)
         
         ciaFile = os.path.join(mainfolder, "cia", "CTGP-7.cia")
+        hbrwFile = os.path.join(mainfolder, "cia", "CTGP-7.3dsx")
+        hbrwFileFinal = os.path.join(hbrwfolder, "CTGP-7.3dsx")
         tooInstallCiaFile = os.path.join(mainfolder, "cia", "tooInstall.cia")
+        tooInstallHbrwFile = os.path.join(mainfolder, "cia", "tooInstall.3dsx")
         
         self._log("Completing installation...")
         
@@ -457,6 +462,9 @@ class CTGP7Updater:
 
         try:
             self.fileDelete(os.path.join(self.basePath, "CTGP-7", *self._PENDINGUPDATE_PATH))
+            if os.path.exists(tooInstallHbrwFile):
+                self.fileMove(tooInstallHbrwFile,hbrwFile)
+                shutil.copyfile(hbrwFile, hbrwFileFinal)
             if os.path.exists(tooInstallCiaFile):
                 self.fileMove(tooInstallCiaFile,ciaFile)
         except Exception as e:

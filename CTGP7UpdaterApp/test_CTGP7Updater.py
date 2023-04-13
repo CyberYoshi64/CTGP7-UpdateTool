@@ -183,10 +183,15 @@ class TestCTGP7Updater:
                 assert filecmp.cmp(pathlib.Path("testData/data8/" + ("data" if e.fileMethod == "M" else "dataCitra") + "/" + e.fileOnlyName).resolve(), e.filePath)
 
         mainfolder = os.path.join(updater.basePath, "CTGP-7")
+        hbrwfolder = os.path.join(updater.basePath, "3ds")
 
         ciaFile = os.path.join(mainfolder, "cia", "CTGP-7.cia")
+        hbrwFile = os.path.join(mainfolder, "cia", "CTGP-7.3dsx")
+        hbrwFileFinal = os.path.join(hbrwfolder, "CTGP-7.3dsx")
         versionFile = os.path.join(mainfolder, *CTGP7Updater._VERSION_FILE_PATH)
 
+        assert filecmp.cmp(pathlib.Path("testData/data8/data/cia/tooInstall.3dsx").resolve(), hbrwFile)
+        assert filecmp.cmp(pathlib.Path("testData/data8/data/cia/tooInstall.3dsx").resolve(), hbrwFileFinal)
         assert filecmp.cmp(pathlib.Path("testData/data8/data/cia/tooInstall.cia").resolve(), ciaFile)
 
         assert filecmp.cmp(pathlib.Path("testData/data8/latestver").resolve(), versionFile)
