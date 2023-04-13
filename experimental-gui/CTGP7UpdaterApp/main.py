@@ -6,8 +6,13 @@ from PySide2.QtWidgets import (
     QApplication, QDialog, QMainWindow, QMessageBox, QFileDialog
 )
 from PySide2.QtCore import (
-    QRunnable, Slot, Signal, QThreadPool, QObject
+    QRunnable, Slot, Signal, QThreadPool, QObject, QUrl
 )
+
+from PySide2.QtGui import (
+    QDesktopServices
+)
+
 import psutil
 
 from CTGP7UpdaterApp.ui_main import Ui_MainWindow
@@ -63,7 +68,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.connectSignalsSlots()
         self.progressBar.setEnabled(False)
         self.progressInfoLabel.setText("")
-        self.isInstaller = True
+        self.workerMode = CTGP7Updater._MODE_INSTALL
         self.isCitraPath = None
         self.hasPending = False
         self.didSaveBackup = False
@@ -86,12 +91,14 @@ class Window(QMainWindow, Ui_MainWindow):
         self.sdRootText.setEnabled(True)
         self.progressInfoLabel.setText("")
         self.applySDFolder(self.sdRootText.text())
+        self.menuFile.setEnabled(True)
+        self.menuExperimental.setEnabled(True)
     
     def installOnError(self, err:str):
         msg = QMessageBox(parent=self)
         msg.setIcon(QMessageBox.Critical)
         msg.setText(
-            "An error has occurred during the installation.<br>"+
+            "An error has occurred.<br><br>"+
             "If this error keeps happening, ask for help in the "+
             "<a href='https://discord.com/invite/0uTPwYv3SPQww54l'>"+
             "CTGP-7 Discord Server</a>."
@@ -140,14 +147,13 @@ class Window(QMainWindow, Ui_MainWindow):
             self.sdRootText.setText(folder)
         elif (os.path.exists(CTGP7Updater.getCitraDir())):
             self.sdRootText.setText(CTGP7Updater.getCitraDir())
-            QMessageBox.information(self, "Couldn't find SD Card", "Couldn't detect an SD Card but a Citra build was found.<br>If you want to install/update CTGP-7 for a 3DS console, use the \"Browse\" button to navigate to the SD Card of your console.")
+            QMessageBox.information(self, "Couldn't find SD Card", "Couldn't detect an SD Card but a Citra build was found.\n\nIf you want to install/update CTGP-7 for a 3DS console, use the \"Browse\" button to navigate to the SD Card of your console.")
             
-
     def updateButtonPress(self):
         if self.hasPending and (QMessageBox.question(self, "Pending update", "A pending update was detected. You must finish it first, before updating again. Do you want to continue this update?", QMessageBox.Yes | QMessageBox.No) == QMessageBox.No): return
-        self.isInstaller = False
+        self.workerMode = CTGP7Updater._MODE_UPDATE
         self.miscInfoLabel.setText("")
-        self.installerworker = CTGP7InstallerWorker(self.sdRootText.text(), self.isInstaller, self.isCitraPath)
+        self.installerworker = CTGP7InstallerWorker(self.sdRootText.text(), self.workerMode, self.isCitraPath)
         self.installerworker.signals.progress.connect(self.reportProgress)
         self.installerworker.signals.success.connect(self.installOnSuccess)
         self.installerworker.signals.error.connect(self.installOnError)
@@ -155,6 +161,8 @@ class Window(QMainWindow, Ui_MainWindow):
         self.sdBrowseButton.setEnabled(False)
         self.helpButton.setEnabled(False)
         self.sdRootText.setEnabled(False)
+        self.menuFile.setEnabled(False)
+        self.menuExperimental.setEnabled(False)
         self.threadpool.start(self.installerworker)
     
     def startStopButtonPress(self):
@@ -162,7 +170,7 @@ class Window(QMainWindow, Ui_MainWindow):
             if self.startButtonState == 2 and (QMessageBox.question(self, "Confirm re-installation", "You are about to re-install CTGP-7.<br>Any modifications via MyStuff will be deleted.<br><br>Do you want to continue?<br>(Your save data will be backed up, if possible.)", QMessageBox.Yes | QMessageBox.No) == QMessageBox.No): return
             if self.startButtonState == 3 and (QMessageBox.question(self, "Broken CTGP-7 installation", "This installation is either corrupted or was flagged for removal. Proceeding will wipe this installation and create a new one.<br><br>Do you want to proceed anyway?<br>(Your save data will be backed up, if possible.)", QMessageBox.Yes | QMessageBox.No) == QMessageBox.No): return
 
-            if self.isInstaller and (self.isCitraPath == None):
+            if self.workerMode and (self.isCitraPath == None):
                 dlg = QMessageBox(self)
                 dlg.setWindowTitle("Select a platform to install for")
                 dlg.setIcon(QMessageBox.Question)
@@ -175,10 +183,10 @@ class Window(QMainWindow, Ui_MainWindow):
                 if dlg.clickedButton() == dlgCancel: return
                 self.isCitraPath = (dlg.clickedButton() == dlgisCitra)
 
-            if self.isInstaller and not self.doSaveBackup(): return
-            self.isInstaller = True
+            if self.workerMode and not self.doSaveBackup(): return
+            self.workerMode = CTGP7Updater._MODE_INSTALL
             self.miscInfoLabel.setText("")
-            self.installerworker = CTGP7InstallerWorker(self.sdRootText.text(), self.isInstaller, self.isCitraPath)
+            self.installerworker = CTGP7InstallerWorker(self.sdRootText.text(), self.workerMode, self.isCitraPath)
             self.installerworker.signals.progress.connect(self.reportProgress)
             self.installerworker.signals.success.connect(self.installOnSuccess)
             self.installerworker.signals.error.connect(self.installOnError)
@@ -186,6 +194,8 @@ class Window(QMainWindow, Ui_MainWindow):
             self.sdBrowseButton.setEnabled(False)
             self.helpButton.setEnabled(False)
             self.sdRootText.setEnabled(False)
+            self.menuFile.setEnabled(False)
+            self.menuExperimental.setEnabled(False)
             self.threadpool.start(self.installerworker)
         elif (self.startButtonState == 4):
             if (self.installerworker):
@@ -205,17 +215,16 @@ class Window(QMainWindow, Ui_MainWindow):
             self.updateButton.clearFocus()
         elif (state == 1):
             self.startStopButton.setText("Install")
-            self.updateButton.setEnabled(False)
         elif (state == 2):
             self.startStopButton.setText("Re-install")
             self.updateButton.setHidden(False)
         elif (state == 3):
             self.startStopButton.setText("Re-install")
-            self.updateButton.setEnabled(False)
         elif (state == 4):
             self.startStopButton.setText("Cancel")
-            self.updateButton.setEnabled(False)
-            self.updateButton.setHidden(True)
+        self.updateButton.setEnabled(not self.updateButton.isHidden())
+        self.actionInstallMod.setEnabled(self.startStopButton.isEnabled())
+        self.actionUpdateMod.setEnabled(self.updateButton.isEnabled())
 
     def applySDFolder(self, folder: str):
         if (folder == "" or folder[-1]==" "):
@@ -266,12 +275,38 @@ class Window(QMainWindow, Ui_MainWindow):
             "2021-2023 CyberYoshi64, PabloMK7"
         )
 
+    def aboutQt(self):
+        QMessageBox.aboutQt(self)
+
+    def openBrowserGitHub(self):
+        QDesktopServices.openUrl(QUrl("https://github.com/CyberYoshi64/CTGP7-UpdateTool/issues"))
+
+    def openBrowserGameBanana(self):
+        QDesktopServices.openUrl(QUrl("https://gamebanana.com/mods/50221"))
+
+    def quitApp(self):
+        self.close()
+
+    def featureNotImplemented(self):
+        QMessageBox.warning(self, "Feature not implemented","This feature is not available at the moment. Check again later.")
+
     def connectSignalsSlots(self):
         self.sdBrowseButton.clicked.connect(self.selectSDDirectory)
         self.sdRootText.textChanged.connect(lambda s: self.applySDFolder(s))
         self.helpButton.clicked.connect(self.showHelpDialog)
+        self.actionAboutThisApp.triggered.connect(self.showHelpDialog)
         self.startStopButton.clicked.connect(self.startStopButtonPress)
         self.updateButton.clicked.connect(self.updateButtonPress)
+        self.actionInstallMod.triggered.connect(self.startStopButtonPress)
+        self.actionUpdateMod.triggered.connect(self.updateButtonPress)
+        self.actionExit.triggered.connect(self.quitApp)
+        self.actionAboutQt.triggered.connect(self.aboutQt)
+        self.actionHelpGamebanana.triggered.connect(self.openBrowserGameBanana)
+        self.actionHelpGitHub.triggered.connect(self.openBrowserGitHub)
+
+        self.actionShowChangelog.setEnabled(False)
+        self.actionInstallCIA.setEnabled(False)
+        self.actionIntegChk.triggered.connect(self.featureNotImplemented)
 
 def startUpdaterApp():
     app = QApplication(sys.argv)

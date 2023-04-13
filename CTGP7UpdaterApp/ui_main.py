@@ -24,6 +24,7 @@ class Ui_MainWindow(object):
         icon = QIcon()
         icon.addFile(u":/images/window_icon.png", QSize(), QIcon.Normal, QIcon.Off)
         MainWindow.setWindowIcon(icon)
+        MainWindow.setIconSize(QSize(64, 64))
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.verticalLayout = QVBoxLayout(self.centralwidget)

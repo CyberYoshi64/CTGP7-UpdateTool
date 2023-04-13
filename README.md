@@ -9,18 +9,18 @@ This tool will automatically check for the SD Card to install/update on. Make su
 
 ## GUI version
 
-Modules needed: `pyside2`, `psutil`
+Modules needed: `pyside2`, `psutil`, `urllib3`
 
-(Should you not have these modules, install them with `pip install pyside2 psutil`)
+(Should you not have these modules, install them with `pip install pyside2 psutil urllib3`)
 
 Simply run `main.py`.
 On Linux, you might need to call it in a terminal using `python main.py`.
 
 ## Terminal version
 
-Modules needed: `psutil`
+Modules needed: `psutil`, `urllib3`
 
-(Should you not have this module, install it with `pip install psutil`)
+(Should you not have this module, install it with `pip install psutil urllib3`)
 
 Run `terminalMain.py` in a terminal. (duh)
 
