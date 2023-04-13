@@ -413,6 +413,7 @@ class CTGP7Updater:
 
         try:
             os.makedirs(mainfolder, exist_ok=True)
+            os.makedirs(hbrwfolder, exist_ok=True)
         except Exception as e:
             raise Exception("Failed to create CTGP-7 directory: {}".format(e))
 
