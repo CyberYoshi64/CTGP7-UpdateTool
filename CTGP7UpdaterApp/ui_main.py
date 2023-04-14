@@ -194,7 +194,7 @@ class Ui_MainWindow(object):
         self.label.setText("")
         self.label_3.setText(QCoreApplication.translate("MainWindow", u"Select target:", None))
         self.sdBrowseButton.setText(QCoreApplication.translate("MainWindow", u"Browse", None))
-        self.miscInfoLabel.setText(QCoreApplication.translate("MainWindow", u"Miscelaneous Information", None))
+        self.miscInfoLabel.setText(QCoreApplication.translate("MainWindow", u"", None))
         self.startStopButton.setText(QCoreApplication.translate("MainWindow", u"Button 1", None))
         self.updateButton.setText(QCoreApplication.translate("MainWindow", u"Button 2", None))
         self.helpButton.setText(QCoreApplication.translate("MainWindow", u"Help", None))

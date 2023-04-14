@@ -36,6 +36,9 @@ try:
         print("Using path from argument")
     else:
         sdPath = CTGP7Updater.findNintendo3DSRoot()
+        if os.path.exists(CTGP7Updater.getCitraDir()):
+            sdPath = CTGP7Updater.getCitraDir()
+            print("Couldn't find an SD Card, but Citra. Using it instead.")
         if sdPath == None:
             raise Exception("Cannot determine a suitable SD Card.{}Try specifying the path with -p".format(os.linesep))
         print("Detected SD Card: \"{}\"".format(sdPath))
