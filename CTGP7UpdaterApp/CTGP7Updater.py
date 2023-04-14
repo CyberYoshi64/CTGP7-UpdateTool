@@ -16,6 +16,7 @@ class CTGP7Updater:
     VERSION_NUMBER = "1.1.2"
 
     _BASE_URL_DYN_LINK = "https://ctgp7.page.link/baseCDNURL"
+    _INSTALLER_VERSION = "installerver"
     _INSTALLER_FILE_DIFF = "installinfo.txt"
     _UPDATER_CHGLOG_FILE = "changeloglist"
     _UPDATER_FILE_URL = "fileListPrefix.txt"
@@ -156,9 +157,13 @@ class CTGP7Updater:
         CTGP7Updater.fileDelete(newf)
         os.rename(oldf,newf)
 
+    @staticmethod
+    def getDefaultCdnUrlAsString():
+        return CTGP7Updater._downloadString(CTGP7Updater._BASE_URL_DYN_LINK).strip()
+
     def fetchDefaultCDNURL(self):
         try:
-            self.baseURL = self._downloadString(CTGP7Updater._BASE_URL_DYN_LINK).replace("\r", "").replace("\n", "")
+            self.baseURL = self._downloadString(CTGP7Updater._BASE_URL_DYN_LINK).strip()
         except Exception as e:
             raise Exception("Failed to init updater: {}".format(e))
         pass
@@ -207,7 +212,8 @@ class CTGP7Updater:
     def _checkNeededExtraSpace(self, diskSpace):
         return 0 if not self.downloadSize else max(0, self.downloadSize + CTGP7Updater._SLACK_FREE_SPACE - diskSpace)
 
-    def _downloadString(self, url: str) -> str:
+    @staticmethod
+    def _downloadString(url: str) -> str:
         try:
             output = urlopen(url, timeout=10).read()
             return output.decode('utf-8')
@@ -391,6 +397,12 @@ class CTGP7Updater:
         except:
             pass
         return None
+
+    @staticmethod
+    def checkProgramVersion():
+        baseURL = CTGP7Updater.getDefaultCdnUrlAsString()
+        ver = CTGP7Updater._downloadString(baseURL + CTGP7Updater._INSTALLER_VERSION).strip()
+        return ver != CTGP7Updater.VERSION_NUMBER
 
     def makePendingUpdate(self):
         header:bytes = self.latestVersion.encode("ascii") + b'\0'

@@ -60,6 +60,8 @@ class Window(QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
+        self.setWindowTitle("CTGP-7 Installer v{}".format(CTGP7Updater.VERSION_NUMBER))
+        self.checkOwnVersion()
         self.connectSignalsSlots()
         self.progressBar.setEnabled(False)
         self.progressInfoLabel.setText("")
@@ -72,6 +74,32 @@ class Window(QMainWindow, Ui_MainWindow):
         self.installerworker = None
         self.threadpool = QThreadPool()
     
+    def checkOwnVersion(self):
+        try:
+            if CTGP7Updater.checkProgramVersion():
+                QMessageBox.information(self, "Update Check",
+                    "There's a new update available for the PC installer.<br><br>"+
+                    "It is recommended to visit the <a href='https://gamebanana.com/mods/50221'>Gamebanana page</a> "+
+                    "to download the latest version to ensure that the PC installer can work smoothly."
+                )
+        except Exception as e:
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText(
+                "An error has occurred while checking for updates.<br>"+
+                "Ensure your device is connected to the internet.<br><br>"+
+                "If this error keeps happening, ask for help in the "+
+                "<a href='https://discord.com/invite/0uTPwYv3SPQww54l'>"+
+                "CTGP-7 Discord Server</a>."
+            )
+            msg.setDetailedText("{}\n\nInstaller version: {}".format(str(e), CTGP7Updater.VERSION_NUMBER))
+            msg.setWindowTitle("Update Check")
+            for b in msg.buttons():
+                if (msg.buttonRole(b) == QMessageBox.ActionRole):
+                    b.click()
+                    break
+            msg.exec_()
+
     def reportProgress(self, data: dict):
         if "m" in data:
             self.progressInfoLabel.setText(data["m"])
@@ -88,7 +116,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.applySDFolder(self.sdRootText.text())
     
     def installOnError(self, err:str):
-        msg = QMessageBox(parent=self)
+        msg = QMessageBox(self)
         msg.setIcon(QMessageBox.Critical)
         msg.setText(
             "An error has occurred during the installation.<br>"+
@@ -96,7 +124,7 @@ class Window(QMainWindow, Ui_MainWindow):
             "<a href='https://discord.com/invite/0uTPwYv3SPQww54l'>"+
             "CTGP-7 Discord Server</a>."
         )
-        msg.setDetailedText(str(err))
+        msg.setDetailedText("{}\n\nInstaller version: {}".format(str(err), CTGP7Updater.VERSION_NUMBER))
         msg.setWindowTitle("Error")
         for b in msg.buttons():
             if (msg.buttonRole(b) == QMessageBox.ActionRole):
