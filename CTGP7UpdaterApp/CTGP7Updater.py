@@ -286,7 +286,8 @@ class CTGP7Updater:
         try:
             p = os.path.join(self.basePath, "CTGP-7", *self._REINSTALLFLAG_PATH)
             CTGP7Updater.mkFoldersForFile(p)
-            open(p, 'wb').close()
+            with open(p, 'wb') as f:
+                f.write("Dang dawg. Gotta do it all over again.")
         except:
             pass
 

@@ -84,7 +84,7 @@ class Window(QMainWindow, Ui_MainWindow):
                 )
         except Exception as e:
             msg = QMessageBox(self)
-            msg.setIcon(QMessageBox.Warning)
+            msg.setIcon(QMessageBox.Critical)
             msg.setText(
                 "An error has occurred while checking for updates.<br>"+
                 "Ensure your device is connected to the internet.<br><br>"+
@@ -119,7 +119,7 @@ class Window(QMainWindow, Ui_MainWindow):
         msg = QMessageBox(self)
         msg.setIcon(QMessageBox.Critical)
         msg.setText(
-            "An error has occurred during the installation.<br>"+
+            "An error has occurred.<br>"+
             "If this error keeps happening, ask for help in the "+
             "<a href='https://discord.com/invite/0uTPwYv3SPQww54l'>"+
             "CTGP-7 Discord Server</a>."
@@ -134,9 +134,22 @@ class Window(QMainWindow, Ui_MainWindow):
         self.reSetup()#self.close()
     
     def installOnSuccess(self, ver:str):
-        QMessageBox.information(self, "Installation finished", "Installation finished successfully! (v{})<br>Make sure to install the cia file in the CTGP-7 -> cia folder in the SD card.".format(ver))
+        QMessageBox.information(
+            self, "Installation finished",
+            "Installation finished successfully! "+
+            "(v{})<br>".format(ver)+
+            "Make sure to install the CIA on the "+
+            "SD Card in the following directory:<br><br>"+
+            "SD -> CTGP-7 -> cia -> CTGP-7.cia")
         if (self.didSaveBackup):
-            if (QMessageBox.question(self, "Save backup", "Would you like to restore the save backup done previously?", QMessageBox.Yes | QMessageBox.No) == QMessageBox.Yes):
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Question)
+            msg.addButton(QMessageBox.Yes)
+            msg.addButton(QMessageBox.No)
+            msg.setDefaultButton(QMessageBox.No)
+            msg.setWindowTitle("Save backup")
+            msg.setText("Would you like to restore the save backup done previously?")
+            if (msg.exec_() == QMessageBox.Yes):
                 savefolder = os.path.join(self.sdRootText.text(), "CTGP-7", "savefs")
                 backupfolder = os.path.join(self.sdRootText.text(), "CTGP-7savebak")
                 try:
@@ -151,12 +164,24 @@ class Window(QMainWindow, Ui_MainWindow):
             savefolder = os.path.join(self.sdRootText.text(), "CTGP-7", "savefs")
             backupfolder = os.path.join(self.sdRootText.text(), "CTGP-7savebak")
             if (os.path.exists(savefolder)):
-                self.reportProgress({"m": "Doing save backup..."})
+                self.reportProgress({"m": "Creating save backup..."})
                 if (os.path.exists(backupfolder)):
                     shutil.rmtree(backupfolder)
                 os.rename(savefolder, backupfolder)
                 self.didSaveBackup = True
                 QMessageBox.information(self, "Save backup", "Save data backup of the previous CTGP-7 installation has been made in {}".format(backupfolder))
+            elif (os.path.exists(backupfolder)):
+                msg = QMessageBox(self)
+                msg.setIcon(QMessageBox.Question)
+                msg.addButton(QMessageBox.Yes)
+                msg.addButton(QMessageBox.No)
+                msg.setDefaultButton(QMessageBox.No)
+                msg.setWindowTitle("Detected save data backup")
+                msg.setText(
+                    "While no save data could be detected for CTGP-7, "+
+                    "a backup was detected.\n\nDo you want to use it?"
+                )
+                self.didSaveBackup = (msg.exec_() == QMessageBox.Yes)
             return True
         except Exception as e:
             self.installOnError("Failed to create save backup: {}".format(e))
@@ -172,7 +197,16 @@ class Window(QMainWindow, Ui_MainWindow):
             
 
     def updateButtonPress(self):
-        if self.hasPending and (QMessageBox.question(self, "Pending update", "A pending update was detected. You must finish it first, before updating again. Do you want to continue this update?", QMessageBox.Yes | QMessageBox.No) == QMessageBox.No): return
+        if self.hasPending:
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Warning)
+            msg.addButton(QMessageBox.Yes)
+            msg.addButton(QMessageBox.No)
+            msg.setDefaultButton(QMessageBox.No)
+            msg.setWindowTitle("Pending update")
+            msg.setText("A pending update was detected. You must finish it first, before updating again. Do you want to continue this update?")
+            if msg.exec_() == QMessageBox.No: return
+        
         self.isInstaller = False
         self.miscInfoLabel.setText("")
         self.installerworker = CTGP7InstallerWorker(self.sdRootText.text(), self.isInstaller, self.isCitraPath)
@@ -187,38 +221,38 @@ class Window(QMainWindow, Ui_MainWindow):
     
     def startStopButtonPress(self):
         if (self.startButtonState > 0 and self.startButtonState < 4):
-            message = QMessageBox(self)
-            message.setIcon(QMessageBox.Icon.Warning)
-            message.addButton(QMessageBox.Yes)
-            message.addButton(QMessageBox.No)
-            message.setDefaultButton(QMessageBox.No)
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Warning)
+            msg.addButton(QMessageBox.Yes)
+            msg.addButton(QMessageBox.No)
+            msg.setDefaultButton(QMessageBox.No)
             
             if (self.startButtonState == 2):
-                message.setWindowTitle("Confirm re-installation")
-                message.setText("You are about to re-install CTGP-7.<br>Any modifications via MyStuff will be deleted.<br><br>Do you want to continue?<br>(Your save data will be backed up, if possible.)")
-                if message.exec() == QMessageBox.No:
+                msg.setWindowTitle("Confirm re-installation")
+                msg.setText("You are about to re-install CTGP-7.<br>Any modifications via MyStuff will be deleted.<br><br>Do you want to continue?<br>(Your save data will be backed up, if possible.)")
+                if msg.exec_() == QMessageBox.No:
                     return
             
             if (self.startButtonState == 3):
-                message.setWindowTitle("Broken CTGP-7 installation")
-                message.setText("This installation is either corrupted or was flagged for removal. Proceeding will wipe this installation and create a new one.<br><br>Do you want to proceed anyway?<br>(Your save data will be backed up, if possible.)")
-                if message.exec() == QMessageBox.No:
+                msg.setWindowTitle("Broken CTGP-7 installation")
+                msg.setText("This installation is either corrupted or was flagged for removal. Proceeding will wipe this installation and create a new one.<br><br>Do you want to proceed anyway?<br>(Your save data will be backed up, if possible.)")
+                if msg.exec_() == QMessageBox.No:
                     return
             
             if self.isInstaller and (self.isCitraPath == None):
-                dlg = QMessageBox(self)
-                dlg.setWindowTitle("Select a platform to install for")
-                dlg.setIcon(QMessageBox.Question)
-                dlg.setText("Unable to determine, whether this installation is meant for a 3DS or Citra.<br><br>Please select which platform you want to install CTGP-7 for.")
-                dlgIs3DS = dlg.addButton("3DS", QMessageBox.NoRole)
-                dlgisCitra = dlg.addButton("Citra", QMessageBox.NoRole)
-                dlgCancel = dlg.addButton("Cancel", QMessageBox.NoRole)
-                dlg.setDefaultButton(dlgCancel)
-                dlg.exec_()
-                if dlg.clickedButton() == dlgCancel: return
-                self.isCitraPath = (dlg.clickedButton() == dlgisCitra)
+                msg = QMessageBox(self)
+                msg.setWindowTitle("Select a platform to install for")
+                msg.setIcon(QMessageBox.Question)
+                msg.setText("Unable to determine, whether this installation is meant for a 3DS or Citra.<br><br>Please select which platform you want to install CTGP-7 for.")
+                dlgIs3DS = msg.addButton("3DS", QMessageBox.NoRole)
+                dlgisCitra = msg.addButton("Citra", QMessageBox.NoRole)
+                dlgCancel = msg.addButton("Cancel", QMessageBox.NoRole)
+                msg.setDefaultButton(dlgCancel)
+                msg.exec_()
+                if msg.clickedButton() == dlgCancel: return
+                self.isCitraPath = (msg.clickedButton() == dlgisCitra)
 
-            if self.isInstaller and not self.doSaveBackup(): return
+            if not self.doSaveBackup(): return
             self.isInstaller = True
             self.miscInfoLabel.setText("")
             self.installerworker = CTGP7InstallerWorker(self.sdRootText.text(), self.isInstaller, self.isCitraPath)
@@ -300,19 +334,23 @@ class Window(QMainWindow, Ui_MainWindow):
             folder_path = folder_path.replace("/", os.path.sep).replace("\\", os.path.sep)
             self.sdRootText.setText(folder_path)
     
-    def showHelpDialog(self):
-        QMessageBox.information(self, "About", 
+    def aboutThisApp(self):
+        msg = QMessageBox(self)
+        msg.setWindowTitle("About this application")
+        msg.setIcon(QMessageBox.Information)
+        msg.setText(
             "CTGP-7 Installer v"+CTGP7Updater.VERSION_NUMBER+"<br><br>"+
             "Having issues? Ask for help in the "+
             "<a href='https://discord.com/invite/0uTPwYv3SPQww54l'>"+
-            "CTGP-7 Discord Server</a><br><br>"+
+            "Discord server</a>.<br><br>"+
             "2021-2023 CyberYoshi64, PabloMK7"
         )
+        msg.exec_()
 
     def connectSignalsSlots(self):
         self.sdBrowseButton.clicked.connect(self.selectSDDirectory)
         self.sdRootText.textChanged.connect(lambda s: self.applySDFolder(s))
-        self.helpButton.clicked.connect(self.showHelpDialog)
+        self.helpButton.clicked.connect(self.aboutThisApp)
         self.startStopButton.clicked.connect(self.startStopButtonPress)
         self.updateButton.clicked.connect(self.updateButtonPress)
 
