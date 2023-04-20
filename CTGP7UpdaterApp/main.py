@@ -187,9 +187,23 @@ class Window(QMainWindow, Ui_MainWindow):
     
     def startStopButtonPress(self):
         if (self.startButtonState > 0 and self.startButtonState < 4):
-            if self.startButtonState == 2 and (QMessageBox.question(self, "Confirm re-installation", "You are about to re-install CTGP-7.<br>Any modifications via MyStuff will be deleted.<br><br>Do you want to continue?<br>(Your save data will be backed up, if possible.)", QMessageBox.Yes | QMessageBox.No) == QMessageBox.No): return
-            if self.startButtonState == 3 and (QMessageBox.question(self, "Broken CTGP-7 installation", "This installation is either corrupted or was flagged for removal. Proceeding will wipe this installation and create a new one.<br><br>Do you want to proceed anyway?<br>(Your save data will be backed up, if possible.)", QMessageBox.Yes | QMessageBox.No) == QMessageBox.No): return
-
+            message = QMessageBox(self)
+            message.addButton(QMessageBox.Yes)
+            message.addButton(QMessageBox.No)
+            message.setDefaultButton(QMessageBox.No)
+            
+            if (self.startButtonState == 2):
+                message.setText("Confirm re-installation")
+                message.setInformativeText("You are about to re-install CTGP-7.<br>Any modifications via MyStuff will be deleted.<br><br>Do you want to continue?<br>(Your save data will be backed up, if possible.)")
+                if message.exec() == QMessageBox.No:
+                    return
+            
+            if (self.startButtonState == 3):
+                message.setText("Broken CTGP-7 installation")
+                message.setInformativeText("This installation is either corrupted or was flagged for removal. Proceeding will wipe this installation and create a new one.<br><br>Do you want to proceed anyway?<br>(Your save data will be backed up, if possible.)")
+                if message.exec() == QMessageBox.No:
+                    return
+            
             if self.isInstaller and (self.isCitraPath == None):
                 dlg = QMessageBox(self)
                 dlg.setWindowTitle("Select a platform to install for")
