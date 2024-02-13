@@ -343,7 +343,7 @@ class Window(QMainWindow, Ui_MainWindow):
             "Having issues? Ask for help in the "+
             "<a href='https://discord.com/invite/0uTPwYv3SPQww54l'>"+
             "Discord server</a>.<br><br>"+
-            "2021-2023 CyberYoshi64, PabloMK7"
+            "2021-2024 CyberYoshi64, PabloMK7"
         )
         msg.exec_()
 

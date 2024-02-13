@@ -5,6 +5,12 @@ import psutil
 import struct
 from typing import List
 
+try:
+    import pyctr.type.cia
+    PYCTR_AVAILABLE = True
+except:
+    PYCTR_AVAILABLE = False
+
 urlmgr = urllib3.PoolManager(headers={"connection":"keep-alive"})
 def urlopen(url, **kwarg):
     out = urlmgr.request("GET", url, chunked=True, preload_content=False, **kwarg)
@@ -28,6 +34,7 @@ class CTGP7Updater:
     _PENDINGUPDATE_PATH = ["config", "pendingUpdate.bin"]
     _ISCITRAFLAG_PATH = ["config", "citra.flag"]
     _REINSTALLFLAG_PATH = ["config", "forceInstall.flag"]
+    _EXPECTEDVER_PATH = ["config", "expectedVer.bin"]
     _SLACK_FREE_SPACE = 20000000
 
     class FileListEntry:
@@ -49,7 +56,7 @@ class CTGP7Updater:
                 self.url == __o.url and \
                 self.fileMethod == __o.fileMethod and \
                 self.forVersion == __o.forVersion
-            
+
         def __str__(self) -> str:
             return "ver: \"{}\" method: \"{}\" path: \"{}\" url: \"{}\"".format(self.forVersion, self.fileMethod, self.filePath, self.url)
         
@@ -66,7 +73,7 @@ class CTGP7Updater:
                 ord(self.fileMethod),\
                 self.forVersion) + \
                 self.remoteName.encode("utf8") + b'\0'
-        
+
         def _downloadFile(self):
             _DOWN_PART_EXT = ".part" # Better safe than sorry
             countRetry = 0
@@ -139,13 +146,13 @@ class CTGP7Updater:
         self.downloadSize = 0
         self.currentUpdateIndex = 0
         self.isCitra = isCitra
-    
+
     @staticmethod
     def getCitraDir() -> str:
         if os.name == "nt": return "%s\\Citra\\sdmc"%os.environ['APPDATA']
         if os.name == "posix": return "%s/.local/share/citra-emu/sdmc"%os.environ['HOME']
         return "./sdmc"
-    
+
     @staticmethod
     def fileDelete(file:str) -> None:
         try: os.stat(file)    # Windows refuses to rename
@@ -167,15 +174,15 @@ class CTGP7Updater:
         except Exception as e:
             raise Exception("Failed to init updater: {}".format(e))
         pass
-    
+
     @staticmethod
     def mkFoldersForFile(fol:str):
         g=fol[0:fol.rfind(os.path.sep)]
         os.makedirs(g, exist_ok=True)
-    
+
     def _buildFilePath(self, path: str):
         return os.path.join(os.path.join(self.basePath, "CTGP-7"), path.replace("/", os.path.sep)[1:])
-    
+
     def _buildFileURL(self, path: str, isCitra: bool):
         return self.baseURL + (CTGP7Updater._FILES_LOCATION_CITRA if isCitra else CTGP7Updater._FILES_LOCATION) + path
 
@@ -201,7 +208,7 @@ class CTGP7Updater:
                             allFileModes[filePathIndex] = "I"
                         filePathIndex += 1
                 allFilePaths.append(path); allFileModes.append(mode)
-        
+
         self.downloadCount = 0
         for i in range(len(allFilePaths)):
             if allFileModes[i]=="M" or allFileModes[i]=="C": self.downloadCount+=1
@@ -222,13 +229,13 @@ class CTGP7Updater:
 
     def stop(self):
         self.isStopped = True
-    
+
     def _isStoppedCallback(self):
         return self.isStopped
 
     def _logFileProgressCallback(self, fileDownCurr, fileDownSize, fileOnlyName):
         self._log("Downloading file {} of {}: \"{}\" ({:.1f}%){}".format(self.currDownloadCount, self.downloadCount, fileOnlyName, (fileDownCurr / fileDownSize) * 100, "\r"*(fileDownCurr<fileDownSize)))
-    
+
     def setBaseURL(self, url):
         self.baseURL = url
 
@@ -260,7 +267,7 @@ class CTGP7Updater:
         (not os.path.exists(os.path.join(path, "CTGP-7", *CTGP7Updater._VERSION_FILE_PATH)))<<1|\
         (os.path.exists(os.path.join(path, "CTGP-7", *CTGP7Updater._PENDINGUPDATE_PATH)))<<2|\
         (os.path.exists(os.path.join(path, "CTGP-7", *CTGP7Updater._REINSTALLFLAG_PATH)))<<3
-        
+
         try:
             if not (bitMask & 2):
                 vfSz = os.stat(os.path.join(path, "CTGP-7", *CTGP7Updater._VERSION_FILE_PATH)).st_size
@@ -305,7 +312,7 @@ class CTGP7Updater:
 
     def loadUpdateInfo(self):
         fileModeList = []
-        
+
         # Installation (read full list)
         if (self.isInstaller):
             self._log("Downloading file list...")
@@ -322,7 +329,7 @@ class CTGP7Updater:
             # Update
             self._log("Preparing update...")
             pendUpdName = os.path.join(self.basePath, "CTGP-7", *self._PENDINGUPDATE_PATH)
-            
+
             # If a pending update present, use it
             if os.path.exists(pendUpdName):
                 entriesLeft:int = 0
@@ -375,13 +382,13 @@ class CTGP7Updater:
 
                     except Exception as e:
                         raise Exception("Failed to get list of files: {}".format(e))
-    
+
     def verifySpaceAvailable(self):
         available_space = psutil.disk_usage(self.basePath).free
         neededSpace = self._checkNeededExtraSpace(available_space)
         if (neededSpace > 0):
             raise Exception("Not enough free space on destination folder. Additional {} MB needed to proceed with installation.".format(neededSpace // 1000000))
-    
+
     @staticmethod
     def findNintendo3DSRoot():
         try:
@@ -456,15 +463,15 @@ class CTGP7Updater:
                 entry.havePerformed = True
 
         self._prog(self.currDownloadCount, self.downloadCount)
-        
+
         ciaFile = os.path.join(mainfolder, "cia", "CTGP-7.cia")
         hbrwFile = os.path.join(mainfolder, "cia", "CTGP-7.3dsx")
         hbrwFileFinal = os.path.join(hbrwfolder, "CTGP-7.3dsx")
         tooInstallCiaFile = os.path.join(mainfolder, "cia", "tooInstall.cia")
         tooInstallHbrwFile = os.path.join(mainfolder, "cia", "tooInstall.3dsx")
-        
+
         self._log("Completing installation...")
-        
+
         try:
             configPath = os.path.join(mainfolder, *CTGP7Updater._VERSION_FILE_PATH)
             self.mkFoldersForFile(configPath)
@@ -474,8 +481,21 @@ class CTGP7Updater:
             self.makeReinstallFlag()
             raise Exception("Failed to write version info: {}".format(e))
 
+        if os.path.exists(tooInstallCiaFile) and PYCTR_AVAILABLE:
+            try:
+                with pyctr.type.cia.CIAReader(tooInstallCiaFile) as ciahdl:
+                    with open(os.path.join(mainfolder, *self._EXPECTEDVER_PATH),"wb") as vf:
+                        vf.write(bytes([
+                            ciahdl.tmd.title_version.major,
+                            ciahdl.tmd.title_version.minor,
+                            ciahdl.tmd.title_version.micro
+                        ]))
+            except Exception as e:
+                self.fileDelete(os.path.join(mainfolder, *self._EXPECTEDVER_PATH))
+                raise Exception("Failed to write launcher info: {}".format(e))
+
         try:
-            self.fileDelete(os.path.join(self.basePath, "CTGP-7", *self._PENDINGUPDATE_PATH))
+            self.fileDelete(os.path.join(mainfolder, *self._PENDINGUPDATE_PATH))
             if os.path.exists(tooInstallHbrwFile):
                 self.fileMove(tooInstallHbrwFile,hbrwFile)
                 shutil.copyfile(hbrwFile, hbrwFileFinal)
@@ -483,7 +503,7 @@ class CTGP7Updater:
                 self.fileMove(tooInstallCiaFile,ciaFile)
         except Exception as e:
             raise Exception("Failed to finish cleanup: {}".format(e))
-        
+
         self._log("Installation complete!")
 
     def cleanInstallFolder(self):
