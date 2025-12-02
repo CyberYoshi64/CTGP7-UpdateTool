@@ -19,9 +19,9 @@ def urlopen(url, **kwarg):
 
 class CTGP7Updater:
 
-    VERSION_NUMBER = "1.1.2"
+    VERSION_NUMBER = "1.1.3"
 
-    _BASE_URL_DYN_LINK = "https://ctgp7.page.link/baseCDNURL"
+    _BASE_URL_DYN_LINK = "https://imaginye.ddns.net:7777/l/baseCDNURL"
     _INSTALLER_VERSION = "installerver"
     _INSTALLER_FILE_DIFF = "installinfo.txt"
     _UPDATER_CHGLOG_FILE = "changeloglist"
@@ -149,8 +149,8 @@ class CTGP7Updater:
 
     @staticmethod
     def getCitraDir() -> str:
-        if os.name == "nt": return "%s\\Citra\\sdmc"%os.environ['APPDATA']
-        if os.name == "posix": return "%s/.local/share/citra-emu/sdmc"%os.environ['HOME']
+        if os.name == "nt": return "%s\\Azahar\\sdmc"%os.environ['APPDATA']
+        if os.name == "posix": return "%s/.local/share/azahar-emu/sdmc"%os.environ['HOME']
         return "./sdmc"
 
     @staticmethod
@@ -517,18 +517,18 @@ class CTGP7Updater:
     @staticmethod
     def isCitraDirectory(path:str): # True/False: Citra/3DS , None: Unsure
         if os.name == "nt":
-            citraPath = os.path.join(os.environ["APPDATA"],"Citra","sdmc")
+            citraPath = os.path.join(os.environ["APPDATA"],"Azahar","sdmc")
         else:
-            citraPath = os.path.join(os.environ["HOME"],".local","share","citra-emu","sdmc")
+            citraPath = os.path.join(os.environ["HOME"],".local","share","azahar-emu","sdmc")
         
         try:
-            if os.path.samefile(path, citraPath): # Linux is case-sensitive, Windows may use inconsistent casing, ruining a simple ==
+            if os.path.exists(citraPath) and os.path.samefile(path, citraPath): # Linux is case-sensitive, Windows may use inconsistent casing, ruining a simple ==
                                                   # Added bonus: symlinks would work this way too.
                 return True # These paths are fixed, so it's definitely Citra
             else:
                 if os.path.exists(os.path.join(path, "boot.firm")):
                     return False # This path is of a hacked 3DS's SD.
-                if os.path.exists(os.path.join(path, *CTGP7Updater._ISCITRAFLAG_PATH)):
+                if os.path.exists(os.path.join(path, "CTGP-7", *CTGP7Updater._ISCITRAFLAG_PATH)):
                     return True # This file is used to only ask during initial installation
             return None # It's unsure, will need to be asked at front-end.
         except:

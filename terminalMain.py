@@ -38,7 +38,7 @@ try:
         sdPath = CTGP7Updater.findNintendo3DSRoot()
         if os.path.exists(CTGP7Updater.getCitraDir()):
             sdPath = CTGP7Updater.getCitraDir()
-            print("Couldn't find an SD Card, but Citra. Using it instead.")
+            print("Couldn't find an SD Card, but Azahar. Using it instead.")
         if sdPath == None:
             raise Exception("Cannot determine a suitable SD Card.{}Try specifying the path with -p".format(os.linesep))
         print("Detected SD Card: \"{}\"".format(sdPath))
@@ -93,12 +93,12 @@ Do you wish to continue anyway?
 Unable to determine for which platform CTGP-7 is meant to be installed for.
 
 Please specify the platform.""")
-        try:    isInstallForCitra = input("[3DS / Citra]").upper().startswith("C")
+        try:    isInstallForCitra = input("[3DS / Azahar]").upper().startswith("A")
         except: raise Exception("User cancelled installation.")
 
     if makeNewInstall:
         installPathFlag &= 3
-        print("Installing CTGP-7 for {}".format("Citra" if isInstallForCitra else "3DS"))
+        print("Installing CTGP-7 for {}".format("Azahar" if isInstallForCitra else "3DS"))
 
     updater = CTGP7Updater(makeNewInstall, isInstallForCitra)
     updater.fetchDefaultCDNURL()

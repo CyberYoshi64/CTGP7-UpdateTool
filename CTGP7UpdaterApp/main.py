@@ -193,7 +193,7 @@ class Window(QMainWindow, Ui_MainWindow):
             self.sdRootText.setText(folder)
         elif (os.path.exists(CTGP7Updater.getCitraDir())):
             self.sdRootText.setText(CTGP7Updater.getCitraDir())
-            QMessageBox.information(self, "Couldn't find SD Card", "Couldn't detect an SD Card but a Citra build was found.<br>If you want to install/update CTGP-7 for a 3DS console, use the \"Browse\" button to navigate to the SD Card of your console.")
+            QMessageBox.information(self, "Couldn't find SD Card", "Couldn't detect an SD Card but an Azahar build was found.<br>If you want to install/update CTGP-7 for a 3DS console, use the \"Browse\" button to navigate to the SD Card of your console.")
             
 
     def updateButtonPress(self):
@@ -243,9 +243,9 @@ class Window(QMainWindow, Ui_MainWindow):
                 msg = QMessageBox(self)
                 msg.setWindowTitle("Select a platform to install for")
                 msg.setIcon(QMessageBox.Question)
-                msg.setText("Unable to determine, whether this installation is meant for a 3DS or Citra.<br><br>Please select which platform you want to install CTGP-7 for.")
+                msg.setText("Unable to determine, whether this installation is meant for a 3DS or Azahar.<br><br>Please select which platform you want to install CTGP-7 for.")
                 dlgIs3DS = msg.addButton("3DS", QMessageBox.NoRole)
-                dlgisCitra = msg.addButton("Citra", QMessageBox.NoRole)
+                dlgisCitra = msg.addButton("Azahar", QMessageBox.NoRole)
                 dlgCancel = msg.addButton("Cancel", QMessageBox.NoRole)
                 msg.setDefaultButton(dlgCancel)
                 msg.exec_()
