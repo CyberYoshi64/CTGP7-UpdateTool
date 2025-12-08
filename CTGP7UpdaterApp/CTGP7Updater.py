@@ -491,8 +491,15 @@ class CTGP7Updater:
                             ciahdl.tmd.title_version.micro
                         ]))
             except Exception as e:
-                self.fileDelete(os.path.join(mainfolder, *self._EXPECTEDVER_PATH))
-                raise Exception("Failed to write launcher info: {}".format(e))
+                try:
+                    with open(os.path.join(mainfolder, *self._EXPECTEDVER_PATH),"wb") as vf:
+                        vf.write(bytes([
+                            0,
+                            0,
+                            0
+                        ]))
+                except Exception as e2:
+                    raise Exception("Failed to write launcher info: {} {}".format(repr(e), repr(e2)))
 
         try:
             self.fileDelete(os.path.join(mainfolder, *self._PENDINGUPDATE_PATH))
