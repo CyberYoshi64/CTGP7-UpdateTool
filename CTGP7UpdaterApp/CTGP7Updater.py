@@ -5,12 +5,6 @@ import psutil
 import struct
 from typing import List
 
-try:
-    import pyctr.type.cia
-    PYCTR_AVAILABLE = True
-except:
-    PYCTR_AVAILABLE = False
-
 urlmgr = urllib3.PoolManager(headers={"connection":"keep-alive"})
 def urlopen(url, **kwarg):
     out = urlmgr.request("GET", url, chunked=True, preload_content=False, **kwarg)
@@ -19,7 +13,7 @@ def urlopen(url, **kwarg):
 
 class CTGP7Updater:
 
-    VERSION_NUMBER = "1.1.3"
+    VERSION_NUMBER = "1.1.4"
 
     _BASE_URL_DYN_LINK = "https://imaginye.ddns.net:7777/l/baseCDNURL"
     _INSTALLER_VERSION = "installerver"
@@ -480,26 +474,6 @@ class CTGP7Updater:
         except Exception as e:
             self.makeReinstallFlag()
             raise Exception("Failed to write version info: {}".format(e))
-
-        if os.path.exists(tooInstallCiaFile) and PYCTR_AVAILABLE:
-            try:
-                with pyctr.type.cia.CIAReader(tooInstallCiaFile) as ciahdl:
-                    with open(os.path.join(mainfolder, *self._EXPECTEDVER_PATH),"wb") as vf:
-                        vf.write(bytes([
-                            ciahdl.tmd.title_version.major,
-                            ciahdl.tmd.title_version.minor,
-                            ciahdl.tmd.title_version.micro
-                        ]))
-            except Exception as e:
-                try:
-                    with open(os.path.join(mainfolder, *self._EXPECTEDVER_PATH),"wb") as vf:
-                        vf.write(bytes([
-                            0,
-                            0,
-                            0
-                        ]))
-                except Exception as e2:
-                    raise Exception("Failed to write launcher info: {} {}".format(repr(e), repr(e2)))
 
         try:
             self.fileDelete(os.path.join(mainfolder, *self._PENDINGUPDATE_PATH))
